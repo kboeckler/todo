@@ -3,15 +3,13 @@ package main
 import (
 	"flag"
 	"fmt"
+	"log"
 	"os"
 	"strings"
-	"time"
 )
 
 func main() {
-
 	debug := flag.Bool("debug", false, "enable debugging messages")
-	dur := flag.Duration("duration", 5*time.Second, "duration to sleep")
 
 	// Perform command line completion if called from completion library
 	complete()
@@ -21,10 +19,50 @@ func main() {
 	if *debug {
 		fmt.Printf("Running '%s' with parameters:\n", os.Args[0])
 		fmt.Printf("  debug:    %v\n", *debug)
-		fmt.Printf("  duration: %v\n", *dur)
 	}
 
-	time.Sleep(*dur)
+	var command *string
+	args := flag.Args()
+	for _, arg := range args {
+		if strings.EqualFold("list", arg) {
+			command = &arg
+		}
+		if strings.EqualFold("help", arg) {
+			command = &arg
+		}
+	}
+	if command == nil {
+		// default case print usage
+		flag.Usage()
+		os.Exit(-1)
+	}
+	if *command == "help" {
+		flag.Usage()
+		os.Exit(0)
+	}
+
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		log.Fatal("Error getting home directory", err)
+	}
+	entries := make([]string, 0)
+	todoDir := homeDir + "/.todo"
+	if stat, err := os.Stat(todoDir); !os.IsNotExist(err) {
+		if stat.IsDir() {
+			files, err := os.ReadDir(todoDir)
+			if err == nil {
+				for _, file := range files {
+					if !file.IsDir() {
+						entries = append(entries, file.Name())
+					}
+				}
+			}
+		}
+	}
+
+	for _, entry := range entries {
+		fmt.Println(entry)
+	}
 }
 
 // complete performs bash command line completion for defined flags
