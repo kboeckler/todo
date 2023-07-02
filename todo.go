@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -22,13 +23,18 @@ func main() {
 	}
 
 	var command *string
+	var arguments []string
 	args := flag.Args()
-	for _, arg := range args {
-		if strings.EqualFold("list", arg) {
-			command = &arg
+	if len(args) > 0 {
+		if strings.EqualFold("list", args[0]) {
+			command = &args[0]
 		}
-		if strings.EqualFold("help", arg) {
-			command = &arg
+		if strings.EqualFold("help", args[0]) {
+			command = &args[0]
+		}
+		if strings.EqualFold("show", args[0]) {
+			command = &args[0]
+			arguments = args[1:]
 		}
 	}
 	if command == nil {
@@ -40,7 +46,27 @@ func main() {
 		flag.Usage()
 		os.Exit(0)
 	}
+	if *command == "list" {
+		list()
+		os.Exit(0)
+	}
+	if *command == "show" {
+		err := show(arguments)
+		if err != nil {
+			_, _ = fmt.Fprintf(os.Stderr, "Cannot show. Reason: %s\n", err)
+		}
+	}
+}
 
+func list() {
+	entries := scanEntries()
+
+	for _, entry := range entries {
+		fmt.Println(entry)
+	}
+}
+
+func scanEntries() []string {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		log.Fatal("Error getting home directory", err)
@@ -59,10 +85,32 @@ func main() {
 			}
 		}
 	}
+	return entries
+}
+
+func show(arguments []string) error {
+	searchFor := ""
+	findAny := false
+	if len(arguments) == 0 {
+		findAny = true
+	} else {
+		searchFor = arguments[0]
+	}
+	if len(arguments) > 1 {
+		return errors.New("invalid parameter for show")
+	}
+
+	entries := scanEntries()
 
 	for _, entry := range entries {
-		fmt.Println(entry)
+		if findAny || strings.Contains(strings.ToUpper(entry), strings.ToUpper(searchFor)) {
+			fmt.Println(entry)
+			return nil
+		}
 	}
+
+	fmt.Printf("No entry found matching %s\n", searchFor)
+	return nil
 }
 
 // complete performs bash command line completion for defined flags
