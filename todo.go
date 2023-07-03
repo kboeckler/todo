@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"errors"
 	"flag"
 	"fmt"
@@ -26,16 +27,8 @@ func main() {
 	var arguments []string
 	args := flag.Args()
 	if len(args) > 0 {
-		if strings.EqualFold("list", args[0]) {
-			command = &args[0]
-		}
-		if strings.EqualFold("help", args[0]) {
-			command = &args[0]
-		}
-		if strings.EqualFold("show", args[0]) {
-			command = &args[0]
-			arguments = args[1:]
-		}
+		command = &args[0]
+		arguments = args[1:]
 	}
 	if command == nil {
 		// default case print usage
@@ -54,6 +47,18 @@ func main() {
 		err := show(arguments)
 		if err != nil {
 			_, _ = fmt.Fprintf(os.Stderr, "Cannot show. Reason: %s\n", err)
+			os.Exit(-2)
+		} else {
+			os.Exit(0)
+		}
+	}
+	if *command == "add" {
+		err := add(arguments)
+		if err != nil {
+			_, _ = fmt.Fprintf(os.Stderr, "Cannot add. Reason: %s\n", err)
+			os.Exit(-3)
+		} else {
+			os.Exit(0)
 		}
 	}
 }
@@ -64,28 +69,6 @@ func list() {
 	for _, entry := range entries {
 		fmt.Println(entry)
 	}
-}
-
-func scanEntries() []string {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		log.Fatal("Error getting home directory", err)
-	}
-	entries := make([]string, 0)
-	todoDir := homeDir + "/.todo"
-	if stat, err := os.Stat(todoDir); !os.IsNotExist(err) {
-		if stat.IsDir() {
-			files, err := os.ReadDir(todoDir)
-			if err == nil {
-				for _, file := range files {
-					if !file.IsDir() {
-						entries = append(entries, file.Name())
-					}
-				}
-			}
-		}
-	}
-	return entries
 }
 
 func show(arguments []string) error {
@@ -111,6 +94,60 @@ func show(arguments []string) error {
 
 	fmt.Printf("No entry found matching %s\n", searchFor)
 	return nil
+}
+
+func add(arguments []string) error {
+	buffer := &bytes.Buffer{}
+	for i := 0; i < len(arguments); i++ {
+		argument := arguments[i]
+		buffer.WriteString(argument)
+		if i < len(arguments)-1 {
+			buffer.WriteRune(' ')
+		}
+	}
+	todoDir, err := findTodoDir()
+	if err != nil {
+		log.Fatalf("Failed to read .todo directory: %s\n", err)
+	}
+	filename := buffer.String() + ".yml"
+	err = os.WriteFile(todoDir+"/"+filename, make([]byte, 0), os.ModeSticky)
+	if err != nil {
+		log.Fatalf("Failed to write entry: %s\n", err)
+	}
+	return nil
+}
+
+func scanEntries() []string {
+	entries := make([]string, 0)
+	todoDir, err := findTodoDir()
+	if err != nil {
+		log.Fatalf("Failed to read .todo directory: %s\n", err)
+	}
+	files, err := os.ReadDir(todoDir)
+	if err == nil {
+		for _, file := range files {
+			if !file.IsDir() {
+				entries = append(entries, file.Name())
+			}
+		}
+	}
+	return entries
+}
+
+func findTodoDir() (string, error) {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		log.Fatal("Error getting home directory", err)
+	}
+	todoDir := homeDir + "/.todo"
+	stat, err := os.Stat(todoDir)
+	if !os.IsNotExist(err) && stat.IsDir() {
+		return todoDir, nil
+	}
+	if err != nil {
+		log.Fatal("Error reading .todo directory", err)
+	}
+	return "", errors.New("cannot read .todo directory")
 }
 
 // complete performs bash command line completion for defined flags
