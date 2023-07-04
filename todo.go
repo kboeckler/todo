@@ -128,7 +128,7 @@ func scanEntries() []string {
 	entries := make([]string, 0)
 	todoDir, err := findTodoDir()
 	if err != nil {
-		log.Fatalf("Failed to read .todo directory: %s\n", err)
+		return entries
 	}
 	files, err := os.ReadDir(todoDir)
 	if err == nil {
@@ -144,17 +144,19 @@ func scanEntries() []string {
 func findTodoDir() (string, error) {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		log.Fatal("Error getting home directory", err)
+		log.Fatal("Error getting home directory: ", err)
 	}
 	todoDir := homeDir + "/.todo"
 	stat, err := os.Stat(todoDir)
 	if !os.IsNotExist(err) && stat.IsDir() {
 		return todoDir, nil
+	} else if os.IsNotExist(err) {
+		return "", errors.New(".todo directory does not exist")
+	} else if !stat.IsDir() {
+		log.Fatal(".todo is present but not a directory")
 	}
-	if err != nil {
-		log.Fatal("Error reading .todo directory", err)
-	}
-	return "", errors.New("cannot read .todo directory")
+	log.Fatal("Error reading .todo directory: ", err)
+	return "", nil
 }
 
 type todo struct {
