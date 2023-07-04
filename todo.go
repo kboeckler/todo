@@ -8,6 +8,7 @@ import (
 	"gopkg.in/yaml.v3"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -23,6 +24,8 @@ func main() {
 		fmt.Printf("Running '%s' with parameters:\n", os.Args[0])
 		fmt.Printf("  debug:    %v\n", *debug)
 	}
+
+	app := &todoApp{config: createDefaultConfig()}
 
 	var command *string
 	var arguments []string
@@ -41,11 +44,11 @@ func main() {
 		os.Exit(0)
 	}
 	if *command == "list" {
-		list()
+		app.list()
 		os.Exit(0)
 	}
 	if *command == "show" {
-		err := show(arguments)
+		err := app.show(arguments)
 		if err != nil {
 			_, _ = fmt.Fprintf(os.Stderr, "Cannot show. Reason: %s\n", err)
 			os.Exit(-2)
@@ -54,7 +57,7 @@ func main() {
 		}
 	}
 	if *command == "add" {
-		err := add(arguments)
+		err := app.add(arguments)
 		if err != nil {
 			_, _ = fmt.Fprintf(os.Stderr, "Cannot add. Reason: %s\n", err)
 			os.Exit(-3)
@@ -64,15 +67,19 @@ func main() {
 	}
 }
 
-func list() {
-	entries := scanEntries()
+type todoApp struct {
+	config config
+}
+
+func (app *todoApp) list() {
+	entries := app.scanEntries()
 
 	for _, entry := range entries {
 		fmt.Println(entry)
 	}
 }
 
-func show(arguments []string) error {
+func (app *todoApp) show(arguments []string) error {
 	searchFor := ""
 	findAny := false
 	if len(arguments) == 0 {
@@ -84,20 +91,37 @@ func show(arguments []string) error {
 		return errors.New("invalid parameter for show")
 	}
 
-	entries := scanEntries()
+	entries := app.scanEntries()
 
+	var matching *string
 	for _, entry := range entries {
 		if findAny || strings.Contains(strings.ToUpper(entry), strings.ToUpper(searchFor)) {
-			fmt.Println(entry)
-			return nil
+			matching = &entry
+			break
 		}
 	}
 
-	fmt.Printf("No entry found matching %s\n", searchFor)
+	if matching == nil {
+		fmt.Printf("No entry found matching %s\n", searchFor)
+		return nil
+	}
+
+	content, err := os.ReadFile(*matching)
+	if err != nil {
+		log.Fatalf("Failed to read entry from file %s: %s", *matching, err)
+	}
+
+	var entry todo
+	err = yaml.Unmarshal(content, &entry)
+	if err != nil {
+		log.Fatalf("Failed to parse todo from file %s: %s", *matching, err)
+	}
+
+	fmt.Printf("Title: %s, Details: %s\n", entry.Title, entry.Details)
 	return nil
 }
 
-func add(arguments []string) error {
+func (app *todoApp) add(arguments []string) error {
 	buffer := &bytes.Buffer{}
 	for i := 0; i < len(arguments); i++ {
 		argument := arguments[i]
@@ -106,9 +130,9 @@ func add(arguments []string) error {
 			buffer.WriteRune(' ')
 		}
 	}
-	todoDir, err := findTodoDir()
+	todoDir, err := app.findTodoDir()
 	if err != nil {
-		log.Fatalf("Failed to read .todo directory: %s\n", err)
+		todoDir = app.createTodoDir()
 	}
 	title := buffer.String()
 	filename := title + ".yml"
@@ -124,9 +148,9 @@ func add(arguments []string) error {
 	return nil
 }
 
-func scanEntries() []string {
+func (app *todoApp) scanEntries() []string {
 	entries := make([]string, 0)
-	todoDir, err := findTodoDir()
+	todoDir, err := app.findTodoDir()
 	if err != nil {
 		return entries
 	}
@@ -134,22 +158,17 @@ func scanEntries() []string {
 	if err == nil {
 		for _, file := range files {
 			if !file.IsDir() {
-				entries = append(entries, file.Name())
+				entries = append(entries, filepath.Join(todoDir, file.Name()))
 			}
 		}
 	}
 	return entries
 }
 
-func findTodoDir() (string, error) {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		log.Fatal("Error getting home directory: ", err)
-	}
-	todoDir := homeDir + "/.todo"
-	stat, err := os.Stat(todoDir)
+func (app *todoApp) findTodoDir() (string, error) {
+	stat, err := os.Stat(app.config.todoDir)
 	if !os.IsNotExist(err) && stat.IsDir() {
-		return todoDir, nil
+		return app.config.todoDir, nil
 	} else if os.IsNotExist(err) {
 		return "", errors.New(".todo directory does not exist")
 	} else if !stat.IsDir() {
@@ -157,6 +176,27 @@ func findTodoDir() (string, error) {
 	}
 	log.Fatal("Error reading .todo directory: ", err)
 	return "", nil
+}
+
+func (app *todoApp) createTodoDir() string {
+	err := os.MkdirAll(app.config.todoDir, os.ModeDir)
+	if err != nil {
+		log.Fatal("Error writing .todo directory: ", err)
+	}
+	return app.config.todoDir
+}
+
+type config struct {
+	todoDir string
+}
+
+func createDefaultConfig() config {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		log.Fatal("Error getting home directory: ", err)
+	}
+	todoDir := homeDir + "/.todo"
+	return config{todoDir: todoDir}
 }
 
 type todo struct {
