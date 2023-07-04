@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"gopkg.in/yaml.v3"
 	"log"
 	"os"
 	"strings"
@@ -109,8 +110,14 @@ func add(arguments []string) error {
 	if err != nil {
 		log.Fatalf("Failed to read .todo directory: %s\n", err)
 	}
-	filename := buffer.String() + ".yml"
-	err = os.WriteFile(todoDir+"/"+filename, make([]byte, 0), os.ModeSticky)
+	title := buffer.String()
+	filename := title + ".yml"
+	fileContent := todo{Title: title}
+	marshal, err := yaml.Marshal(&fileContent)
+	if err != nil {
+		log.Fatalf("Failed to write file: %s\n", err)
+	}
+	err = os.WriteFile(todoDir+"/"+filename, marshal, os.FileMode(0777))
 	if err != nil {
 		log.Fatalf("Failed to write entry: %s\n", err)
 	}
@@ -148,6 +155,11 @@ func findTodoDir() (string, error) {
 		log.Fatal("Error reading .todo directory", err)
 	}
 	return "", errors.New("cannot read .todo directory")
+}
+
+type todo struct {
+	Title   string `yaml:"title"`
+	Details string `yaml:"details"`
 }
 
 // complete performs bash command line completion for defined flags
