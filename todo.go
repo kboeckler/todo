@@ -2,19 +2,25 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"flag"
 	"fmt"
 	"github.com/google/uuid"
 	"gopkg.in/yaml.v3"
+	"io"
 	"log"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
+	"syscall"
+	"time"
 )
 
 func main() {
 	debug := flag.Bool("debug", false, "enable debugging messages")
+	server := flag.Bool("server", false, "run server instance")
 
 	// Perform command line completion if called from completion library
 	complete()
@@ -26,7 +32,19 @@ func main() {
 		fmt.Printf("  debug:    %v\n", *debug)
 	}
 
-	app := &todoApp{config: createDefaultConfig()}
+	app := &todoApp{}
+
+	if *server {
+		runServer(app)
+		os.Exit(0)
+	}
+
+	runCli(app)
+}
+
+func runCli(app *todoApp) {
+	config := createDefaultConfig()
+	app.reloadConfig(config)
 
 	var command *string
 	var arguments []string
@@ -209,8 +227,13 @@ func (app *todoApp) createTodoDir() string {
 	return app.config.todoDir
 }
 
+func (app *todoApp) reloadConfig(config config) {
+	app.config = config
+}
+
 type config struct {
 	todoDir string
+	tick    time.Duration
 }
 
 func createDefaultConfig() config {
@@ -219,7 +242,7 @@ func createDefaultConfig() config {
 		log.Fatal("Error getting home directory: ", err)
 	}
 	todoDir := homeDir + "/.todo"
-	return config{todoDir: todoDir}
+	return config{todoDir: todoDir, tick: 1 * time.Second}
 }
 
 type todo struct {
@@ -257,4 +280,61 @@ func complete() {
 	})
 
 	os.Exit(0)
+}
+
+func runServer(app *todoApp) {
+	config := createDefaultConfig()
+	app.reloadConfig(config)
+
+	ctx := context.Background()
+	ctx, cancel := context.WithCancel(ctx)
+
+	signalChan := make(chan os.Signal, 1)
+	signal.Notify(signalChan, os.Interrupt, syscall.SIGHUP)
+
+	defer func() {
+		signal.Stop(signalChan)
+		cancel()
+	}()
+
+	go func() {
+		for {
+			select {
+			case s := <-signalChan:
+				switch s {
+				case syscall.SIGHUP:
+					config = createDefaultConfig()
+					app.reloadConfig(config)
+				case os.Interrupt:
+					cancel()
+					os.Exit(1)
+				}
+			case <-ctx.Done():
+				log.Printf("Done.")
+				os.Exit(1)
+			}
+		}
+	}()
+
+	if err := run(app, ctx, config, os.Stdout); err != nil {
+		_, _ = fmt.Fprintf(os.Stderr, "%s\n", err)
+		os.Exit(1)
+	}
+
+	defer func() {
+		cancel()
+	}()
+}
+
+func run(app *todoApp, ctx context.Context, config config, stdout io.Writer) error {
+	log.SetOutput(os.Stdout)
+
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-time.Tick(config.tick):
+			fmt.Println("Tick :-)")
+		}
+	}
 }
