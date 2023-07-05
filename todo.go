@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/google/uuid"
 	"gopkg.in/yaml.v3"
 	"log"
 	"os"
@@ -76,7 +77,7 @@ func (app *todoApp) list() {
 
 	for _, path := range entries {
 		entry := app.readEntryFromFile(path)
-		fmt.Printf("Title: %s, Details: %s\n", entry.Title, entry.Details)
+		fmt.Printf("%s Title: %s, Details: %s\n", entry.Id, entry.Title, entry.Details)
 	}
 }
 
@@ -93,23 +94,39 @@ func (app *todoApp) show(arguments []string) error {
 	}
 
 	entries := app.scanEntries()
+	todos := make([]todo, len(entries))
+	for i := 0; i < len(entries); i++ {
+		todos[i] = app.readEntryFromFile(entries[i])
+	}
 
-	var matching *string
-	for _, entry := range entries {
-		if findAny || strings.Contains(strings.ToUpper(entry), strings.ToUpper(searchFor)) {
-			matching = &entry
-			break
+	var matching *todo
+
+	if findAny && len(todos) > 0 {
+		matching = &todos[0]
+	}
+	if matching == nil {
+		for _, entry := range todos {
+			if findAny || strings.Contains(strings.ToUpper(entry.Id.String()), strings.ToUpper(searchFor)) {
+				matching = &entry
+				break
+			}
+		}
+	}
+	if matching == nil {
+		for _, entry := range todos {
+			if strings.Contains(strings.ToUpper(entry.Title), strings.ToUpper(searchFor)) {
+				matching = &entry
+				break
+			}
 		}
 	}
 
 	if matching == nil {
-		fmt.Printf("No entry found matching %s\n", searchFor)
+		fmt.Printf("No path found matching %s\n", searchFor)
 		return nil
 	}
 
-	entry := app.readEntryFromFile(*matching)
-
-	fmt.Printf("Title: %s, Details: %s\n", entry.Title, entry.Details)
+	fmt.Printf("%s Title: %s, Details: %s\n", matching.Id, matching.Title, matching.Details)
 	return nil
 }
 
@@ -142,7 +159,7 @@ func (app *todoApp) add(arguments []string) error {
 	}
 	title := buffer.String()
 	filename := title + ".yml"
-	fileContent := todo{Title: title}
+	fileContent := todo{Title: title, Id: uuid.New()}
 	marshal, err := yaml.Marshal(&fileContent)
 	if err != nil {
 		log.Fatalf("Failed to write file: %s\n", err)
@@ -206,8 +223,9 @@ func createDefaultConfig() config {
 }
 
 type todo struct {
-	Title   string `yaml:"title"`
-	Details string `yaml:"details"`
+	Title   string    `yaml:"title"`
+	Details string    `yaml:"details"`
+	Id      uuid.UUID `yaml:"id"`
 }
 
 // complete performs bash command line completion for defined flags
