@@ -74,8 +74,9 @@ type todoApp struct {
 func (app *todoApp) list() {
 	entries := app.scanEntries()
 
-	for _, entry := range entries {
-		fmt.Println(entry)
+	for _, path := range entries {
+		entry := app.readEntryFromFile(path)
+		fmt.Printf("Title: %s, Details: %s\n", entry.Title, entry.Details)
 	}
 }
 
@@ -106,19 +107,24 @@ func (app *todoApp) show(arguments []string) error {
 		return nil
 	}
 
-	content, err := os.ReadFile(*matching)
+	entry := app.readEntryFromFile(*matching)
+
+	fmt.Printf("Title: %s, Details: %s\n", entry.Title, entry.Details)
+	return nil
+}
+
+func (app *todoApp) readEntryFromFile(pathToFile string) todo {
+	content, err := os.ReadFile(pathToFile)
 	if err != nil {
-		log.Fatalf("Failed to read entry from file %s: %s", *matching, err)
+		log.Fatalf("Failed to read entry from file %s: %s", pathToFile, err)
 	}
 
 	var entry todo
 	err = yaml.Unmarshal(content, &entry)
 	if err != nil {
-		log.Fatalf("Failed to parse todo from file %s: %s", *matching, err)
+		log.Fatalf("Failed to parse todo from file %s: %s", pathToFile, err)
 	}
-
-	fmt.Printf("Title: %s, Details: %s\n", entry.Title, entry.Details)
-	return nil
+	return entry
 }
 
 func (app *todoApp) add(arguments []string) error {
