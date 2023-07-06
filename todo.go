@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"github.com/google/uuid"
 	"gopkg.in/yaml.v3"
-	"io"
 	"log"
 	"os"
 	"os/signal"
@@ -82,6 +81,10 @@ func runCli(app *todoApp) {
 			os.Exit(0)
 		}
 	}
+	if *command == "due" {
+		app.due()
+		os.Exit(0)
+	}
 }
 
 type todoApp struct {
@@ -144,6 +147,27 @@ func (app *todoApp) show(arguments []string) error {
 
 	fmt.Printf("%s Title: %s, Details: %s, Due: %s\n", matching.Id, matching.Title, matching.Details, matching.Due)
 	return nil
+}
+
+func (app *todoApp) due() {
+	entries := app.scanEntries()
+	todos := make([]todo, len(entries))
+	for i := 0; i < len(entries); i++ {
+		todos[i] = app.readEntryFromFile(entries[i])
+	}
+
+	matching := make([]todo, 0)
+
+	now := time.Now()
+	for _, entry := range todos {
+		if entry.Due.Before(now) {
+			matching = append(matching, entry)
+		}
+	}
+
+	for _, entry := range matching {
+		fmt.Printf("%s Title: %s, Details: %s, Due: %s\n", entry.Id, entry.Title, entry.Details, entry.Due)
+	}
 }
 
 func (app *todoApp) readEntryFromFile(pathToFile string) todo {
@@ -218,7 +242,7 @@ func (app *todoApp) findTodoDir() (string, error) {
 }
 
 func (app *todoApp) createTodoDir() string {
-	err := os.MkdirAll(app.config.todoDir, os.ModeDir)
+	err := os.MkdirAll(app.config.todoDir, os.FileMode(0777))
 	if err != nil {
 		log.Fatal("Error writing .todo directory: ", err)
 	}
@@ -315,7 +339,7 @@ func runServer(app *todoApp) {
 		}
 	}()
 
-	if err := run(app, ctx, config, os.Stdout); err != nil {
+	if err := run(app, ctx, config); err != nil {
 		log.Fatalf("%s\n", err)
 	}
 
@@ -324,9 +348,7 @@ func runServer(app *todoApp) {
 	}()
 }
 
-func run(app *todoApp, ctx context.Context, config config, stdout io.Writer) error {
-	log.SetOutput(os.Stdout)
-
+func run(app *todoApp, ctx context.Context, config config) error {
 	for {
 		select {
 		case <-ctx.Done():
