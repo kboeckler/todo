@@ -69,8 +69,7 @@ func runCli(app *todoApp) {
 	if *command == "show" {
 		err := app.show(arguments)
 		if err != nil {
-			_, _ = fmt.Fprintf(os.Stderr, "Cannot show. Reason: %s\n", err)
-			os.Exit(-2)
+			log.Fatalf("Cannot show. Reason: %s\n", err)
 		} else {
 			os.Exit(0)
 		}
@@ -78,8 +77,7 @@ func runCli(app *todoApp) {
 	if *command == "add" {
 		err := app.add(arguments)
 		if err != nil {
-			_, _ = fmt.Fprintf(os.Stderr, "Cannot add. Reason: %s\n", err)
-			os.Exit(-3)
+			log.Fatalf("Cannot add. Reason: %s\n", err)
 		} else {
 			os.Exit(0)
 		}
@@ -95,7 +93,7 @@ func (app *todoApp) list() {
 
 	for _, path := range entries {
 		entry := app.readEntryFromFile(path)
-		fmt.Printf("%s Title: %s, Details: %s\n", entry.Id, entry.Title, entry.Details)
+		fmt.Printf("%s Title: %s, Details: %s, Due: %s\n", entry.Id, entry.Title, entry.Details, entry.Due)
 	}
 }
 
@@ -144,7 +142,7 @@ func (app *todoApp) show(arguments []string) error {
 		return nil
 	}
 
-	fmt.Printf("%s Title: %s, Details: %s\n", matching.Id, matching.Title, matching.Details)
+	fmt.Printf("%s Title: %s, Details: %s, Due: %s\n", matching.Id, matching.Title, matching.Details, matching.Due)
 	return nil
 }
 
@@ -177,7 +175,7 @@ func (app *todoApp) add(arguments []string) error {
 	}
 	title := buffer.String()
 	filename := title + ".yml"
-	fileContent := todo{Title: title, Id: uuid.New()}
+	fileContent := todo{Title: title, Id: uuid.New(), Due: time.Now().Add(24 * time.Hour)}
 	marshal, err := yaml.Marshal(&fileContent)
 	if err != nil {
 		log.Fatalf("Failed to write file: %s\n", err)
@@ -248,6 +246,7 @@ func createDefaultConfig() config {
 type todo struct {
 	Title   string    `yaml:"title"`
 	Details string    `yaml:"details"`
+	Due     time.Time `yaml:"due"`
 	Id      uuid.UUID `yaml:"id"`
 }
 
@@ -317,8 +316,7 @@ func runServer(app *todoApp) {
 	}()
 
 	if err := run(app, ctx, config, os.Stdout); err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "%s\n", err)
-		os.Exit(1)
+		log.Fatalf("%s\n", err)
 	}
 
 	defer func() {
