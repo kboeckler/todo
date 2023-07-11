@@ -38,12 +38,13 @@ func main() {
 		os.Exit(0)
 	}
 
-	runCli(app)
+	cli := cli{app}
+	cli.run()
 }
 
-func runCli(app *todoApp) {
+func (cli *cli) run() {
 	config := createDefaultConfig()
-	app.reloadConfig(config)
+	cli.app.reloadConfig(config)
 
 	var command *string
 	var arguments []string
@@ -62,11 +63,11 @@ func runCli(app *todoApp) {
 		os.Exit(0)
 	}
 	if *command == "list" {
-		app.list()
+		cli.list()
 		os.Exit(0)
 	}
 	if *command == "show" {
-		err := app.show(arguments)
+		err := cli.show(arguments)
 		if err != nil {
 			log.Fatalf("Cannot show. Reason: %s\n", err)
 		} else {
@@ -74,7 +75,7 @@ func runCli(app *todoApp) {
 		}
 	}
 	if *command == "add" {
-		err := app.add(arguments)
+		err := cli.app.add(arguments)
 		if err != nil {
 			log.Fatalf("Cannot add. Reason: %s\n", err)
 		} else {
@@ -82,25 +83,24 @@ func runCli(app *todoApp) {
 		}
 	}
 	if *command == "due" {
-		app.due()
+		cli.app.due()
 		os.Exit(0)
 	}
 }
 
-type todoApp struct {
-	config config
+type cli struct {
+	app *todoApp
 }
 
-func (app *todoApp) list() {
-	entries := app.scanEntries()
+func (cli *cli) list() {
+	entries := cli.app.findAll()
 
-	for _, path := range entries {
-		entry := app.readEntryFromFile(path)
+	for _, entry := range entries {
 		fmt.Printf("%s Title: %s, Details: %s, Due: %s\n", entry.Id, entry.Title, entry.Details, entry.Due)
 	}
 }
 
-func (app *todoApp) show(arguments []string) error {
+func (cli *cli) show(arguments []string) error {
 	searchFor := ""
 	findAny := false
 	if len(arguments) == 0 {
@@ -112,20 +112,33 @@ func (app *todoApp) show(arguments []string) error {
 		return errors.New("invalid parameter for show")
 	}
 
-	entries := app.scanEntries()
-	todos := make([]todo, len(entries))
-	for i := 0; i < len(entries); i++ {
-		todos[i] = app.readEntryFromFile(entries[i])
+	var entry *todo
+
+	if findAny {
+		entries := cli.app.findAll()
+		if len(entries) > 0 {
+			entry = &entries[0]
+		}
+	} else {
+		entry = cli.app.find(searchFor)
 	}
+
+	if entry == nil {
+		fmt.Printf("No entry found matching %s\n", searchFor)
+	} else {
+		fmt.Printf("%s Title: %s, Details: %s, Due: %s\n", entry.Id, entry.Title, entry.Details, entry.Due)
+	}
+	return nil
+}
+
+func (app *todoApp) find(searchFor string) *todo {
+	todos := app.readAllEntries()
 
 	var matching *todo
 
-	if findAny && len(todos) > 0 {
-		matching = &todos[0]
-	}
 	if matching == nil {
 		for _, entry := range todos {
-			if findAny || strings.Contains(strings.ToUpper(entry.Id.String()), strings.ToUpper(searchFor)) {
+			if strings.Contains(strings.ToUpper(entry.Id.String()), strings.ToUpper(searchFor)) {
 				matching = &entry
 				break
 			}
@@ -140,21 +153,11 @@ func (app *todoApp) show(arguments []string) error {
 		}
 	}
 
-	if matching == nil {
-		fmt.Printf("No path found matching %s\n", searchFor)
-		return nil
-	}
-
-	fmt.Printf("%s Title: %s, Details: %s, Due: %s\n", matching.Id, matching.Title, matching.Details, matching.Due)
-	return nil
+	return matching
 }
 
 func (app *todoApp) due() {
-	entries := app.scanEntries()
-	todos := make([]todo, len(entries))
-	for i := 0; i < len(entries); i++ {
-		todos[i] = app.readEntryFromFile(entries[i])
-	}
+	todos := app.readAllEntries()
 
 	matching := make([]todo, 0)
 
@@ -168,6 +171,23 @@ func (app *todoApp) due() {
 	for _, entry := range matching {
 		fmt.Printf("%s Title: %s, Details: %s, Due: %s\n", entry.Id, entry.Title, entry.Details, entry.Due)
 	}
+}
+
+type todoApp struct {
+	config config
+}
+
+func (app *todoApp) findAll() []todo {
+	return app.readAllEntries()
+}
+
+func (app *todoApp) readAllEntries() []todo {
+	entries := app.scanEntries()
+	todos := make([]todo, len(entries))
+	for i := 0; i < len(entries); i++ {
+		todos[i] = app.readEntryFromFile(entries[i])
+	}
+	return todos
 }
 
 func (app *todoApp) readEntryFromFile(pathToFile string) todo {
