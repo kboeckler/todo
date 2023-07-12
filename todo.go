@@ -19,7 +19,7 @@ import (
 
 func main() {
 	debug := flag.Bool("debug", false, "enable debugging messages")
-	server := flag.Bool("server", false, "run server instance")
+	runAsServer := flag.Bool("server", false, "run server instance")
 
 	// Perform command line completion if called from completion library
 	complete()
@@ -33,8 +33,9 @@ func main() {
 
 	app := &todoApp{}
 
-	if *server {
-		runServer(app)
+	if *runAsServer {
+		server := server{app}
+		server.run()
 		os.Exit(0)
 	}
 
@@ -329,9 +330,13 @@ func complete() {
 	os.Exit(0)
 }
 
-func runServer(app *todoApp) {
+type server struct {
+	app *todoApp
+}
+
+func (server *server) run() {
 	config := createDefaultConfig()
-	app.reloadConfig(config)
+	server.app.reloadConfig(config)
 
 	ctx := context.Background()
 	ctx, cancel := context.WithCancel(ctx)
@@ -351,7 +356,7 @@ func runServer(app *todoApp) {
 				switch s {
 				case syscall.SIGHUP:
 					config = createDefaultConfig()
-					app.reloadConfig(config)
+					server.app.reloadConfig(config)
 				case os.Interrupt:
 					cancel()
 					os.Exit(1)
@@ -363,7 +368,7 @@ func runServer(app *todoApp) {
 		}
 	}()
 
-	if err := run(app, ctx, config); err != nil {
+	if err := server.loop(ctx, config); err != nil {
 		log.Fatalf("%s\n", err)
 	}
 
@@ -372,7 +377,7 @@ func runServer(app *todoApp) {
 	}()
 }
 
-func run(app *todoApp, ctx context.Context, config config) error {
+func (server *server) loop(ctx context.Context, config config) error {
 	for {
 		select {
 		case <-ctx.Done():
