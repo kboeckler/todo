@@ -75,15 +75,11 @@ func (cli *cli) run() {
 		}
 	}
 	if *command == "add" {
-		err := cli.app.add(arguments)
-		if err != nil {
-			log.Fatalf("Cannot add. Reason: %s\n", err)
-		} else {
-			os.Exit(0)
-		}
+		cli.add(arguments)
+		os.Exit(0)
 	}
 	if *command == "due" {
-		cli.app.due()
+		cli.due()
 		os.Exit(0)
 	}
 }
@@ -131,6 +127,49 @@ func (cli *cli) show(arguments []string) error {
 	return nil
 }
 
+func (cli *cli) due() {
+	entries := cli.app.findWhereDueBefore(time.Now())
+
+	for _, entry := range entries {
+		fmt.Printf("%s Title: %s, Details: %s, Due: %s\n", entry.Id, entry.Title, entry.Details, entry.Due)
+	}
+}
+
+func (cli *cli) add(arguments []string) {
+	buffer := &bytes.Buffer{}
+	for i := 0; i < len(arguments); i++ {
+		argument := arguments[i]
+		buffer.WriteString(argument)
+		if i < len(arguments)-1 {
+			buffer.WriteRune(' ')
+		}
+	}
+	title := buffer.String()
+	cli.app.add(title)
+}
+
+type todoApp struct {
+	config config
+}
+
+func (app *todoApp) findAll() []todo {
+	return app.readAllEntries()
+}
+
+func (app *todoApp) findWhereDueBefore(due time.Time) []todo {
+	todos := app.readAllEntries()
+
+	matching := make([]todo, 0)
+
+	for _, entry := range todos {
+		if entry.Due.Before(due) {
+			matching = append(matching, entry)
+		}
+	}
+
+	return matching
+}
+
 func (app *todoApp) find(searchFor string) *todo {
 	todos := app.readAllEntries()
 
@@ -156,31 +195,6 @@ func (app *todoApp) find(searchFor string) *todo {
 	return matching
 }
 
-func (app *todoApp) due() {
-	todos := app.readAllEntries()
-
-	matching := make([]todo, 0)
-
-	now := time.Now()
-	for _, entry := range todos {
-		if entry.Due.Before(now) {
-			matching = append(matching, entry)
-		}
-	}
-
-	for _, entry := range matching {
-		fmt.Printf("%s Title: %s, Details: %s, Due: %s\n", entry.Id, entry.Title, entry.Details, entry.Due)
-	}
-}
-
-type todoApp struct {
-	config config
-}
-
-func (app *todoApp) findAll() []todo {
-	return app.readAllEntries()
-}
-
 func (app *todoApp) readAllEntries() []todo {
 	entries := app.scanEntries()
 	todos := make([]todo, len(entries))
@@ -204,20 +218,11 @@ func (app *todoApp) readEntryFromFile(pathToFile string) todo {
 	return entry
 }
 
-func (app *todoApp) add(arguments []string) error {
-	buffer := &bytes.Buffer{}
-	for i := 0; i < len(arguments); i++ {
-		argument := arguments[i]
-		buffer.WriteString(argument)
-		if i < len(arguments)-1 {
-			buffer.WriteRune(' ')
-		}
-	}
+func (app *todoApp) add(title string) {
 	todoDir, err := app.findTodoDir()
 	if err != nil {
 		todoDir = app.createTodoDir()
 	}
-	title := buffer.String()
 	filename := title + ".yml"
 	fileContent := todo{Title: title, Id: uuid.New(), Due: time.Now().Add(24 * time.Hour)}
 	marshal, err := yaml.Marshal(&fileContent)
@@ -228,7 +233,6 @@ func (app *todoApp) add(arguments []string) error {
 	if err != nil {
 		log.Fatalf("Failed to write entry: %s\n", err)
 	}
-	return nil
 }
 
 func (app *todoApp) scanEntries() []string {
