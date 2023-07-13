@@ -10,6 +10,7 @@ import (
 	"gopkg.in/yaml.v3"
 	"log"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"strings"
@@ -93,7 +94,7 @@ func (cli *cli) list() {
 	entries := cli.app.findAll()
 
 	for _, entry := range entries {
-		fmt.Printf("%s Title: %s, Details: %s, Due: %s\n", entry.Id, entry.Title, entry.Details, entry.Due)
+		fmt.Printf("%s Title: %s, Details: %s, Due: %s, Notification: %v\n", entry.Id, entry.Title, entry.Details, entry.Due, entry.Notification)
 	}
 }
 
@@ -153,6 +154,10 @@ type todoApp struct {
 	config config
 }
 
+func (app *todoApp) reloadConfig(config config) {
+	app.config = config
+}
+
 func (app *todoApp) findAll() []todo {
 	return app.readAllEntries()
 }
@@ -164,6 +169,20 @@ func (app *todoApp) findWhereDueBefore(due time.Time) []todo {
 
 	for _, entry := range todos {
 		if entry.Due.Before(due) {
+			matching = append(matching, entry)
+		}
+	}
+
+	return matching
+}
+
+func (app *todoApp) findWhereDueBeforeAndByNotificationTypeAndNotifiedAtEmpty(due time.Time, notType notificationType) []todo {
+	todos := app.readAllEntries()
+
+	matching := make([]todo, 0)
+
+	for _, entry := range todos {
+		if entry.Due.Before(due) && entry.Notification.Type == notType && entry.Notification.NotifiedAt.IsZero() {
 			matching = append(matching, entry)
 		}
 	}
@@ -196,36 +215,13 @@ func (app *todoApp) find(searchFor string) *todo {
 	return matching
 }
 
-func (app *todoApp) readAllEntries() []todo {
-	entries := app.scanEntries()
-	todos := make([]todo, len(entries))
-	for i := 0; i < len(entries); i++ {
-		todos[i] = app.readEntryFromFile(entries[i])
-	}
-	return todos
-}
-
-func (app *todoApp) readEntryFromFile(pathToFile string) todo {
-	content, err := os.ReadFile(pathToFile)
-	if err != nil {
-		log.Fatalf("Failed to read entry from file %s: %s", pathToFile, err)
-	}
-
-	var entry todo
-	err = yaml.Unmarshal(content, &entry)
-	if err != nil {
-		log.Fatalf("Failed to parse todo from file %s: %s", pathToFile, err)
-	}
-	return entry
-}
-
 func (app *todoApp) add(title string) {
 	todoDir, err := app.findTodoDir()
 	if err != nil {
 		todoDir = app.createTodoDir()
 	}
 	filename := title + ".yml"
-	fileContent := todo{Title: title, Id: uuid.New(), Due: time.Now().Add(24 * time.Hour)}
+	fileContent := todo{Title: title, Id: uuid.New(), Due: time.Now().Add(24 * time.Hour), Notification: notification{Type: NotificationTypeOnce}}
 	marshal, err := yaml.Marshal(&fileContent)
 	if err != nil {
 		log.Fatalf("Failed to write file: %s\n", err)
@@ -234,6 +230,15 @@ func (app *todoApp) add(title string) {
 	if err != nil {
 		log.Fatalf("Failed to write entry: %s\n", err)
 	}
+}
+
+func (app *todoApp) readAllEntries() []todo {
+	entries := app.scanEntries()
+	todos := make([]todo, len(entries))
+	for i := 0; i < len(entries); i++ {
+		todos[i] = app.readEntryFromFile(entries[i])
+	}
+	return todos
 }
 
 func (app *todoApp) scanEntries() []string {
@@ -251,6 +256,24 @@ func (app *todoApp) scanEntries() []string {
 		}
 	}
 	return entries
+}
+
+func (app *todoApp) readEntryFromFile(pathToFile string) todo {
+	content, err := os.ReadFile(pathToFile)
+	if err != nil {
+		log.Fatalf("Failed to read entry from file %s: %s", pathToFile, err)
+	}
+
+	var entry todo
+	err = yaml.Unmarshal(content, &entry)
+	if err != nil {
+		log.Fatalf("Failed to parse todo from file %s: %s", pathToFile, err)
+	}
+	err = entry.validate()
+	if err != nil {
+		log.Fatalf("Failed to validate todo from file %s: %s", pathToFile, err)
+	}
+	return entry
 }
 
 func (app *todoApp) findTodoDir() (string, error) {
@@ -274,13 +297,10 @@ func (app *todoApp) createTodoDir() string {
 	return app.config.todoDir
 }
 
-func (app *todoApp) reloadConfig(config config) {
-	app.config = config
-}
-
 type config struct {
-	todoDir string
-	tick    time.Duration
+	todoDir         string
+	tick            time.Duration
+	notificationCmd string
 }
 
 func createDefaultConfig() config {
@@ -289,14 +309,38 @@ func createDefaultConfig() config {
 		log.Fatal("Error getting home directory: ", err)
 	}
 	todoDir := homeDir + "/.todo"
-	return config{todoDir: todoDir, tick: 1 * time.Second}
+	return config{todoDir: todoDir, tick: 1 * time.Second, notificationCmd: "echo"}
 }
 
 type todo struct {
-	Title   string    `yaml:"title"`
-	Details string    `yaml:"details"`
-	Due     time.Time `yaml:"due"`
-	Id      uuid.UUID `yaml:"id"`
+	Title        string       `yaml:"title"`
+	Details      string       `yaml:"details"`
+	Due          time.Time    `yaml:"due,omitempty"`
+	Id           uuid.UUID    `yaml:"id"`
+	Notification notification `yaml:"notification"`
+}
+
+func (t *todo) validate() error {
+	if strings.EqualFold(string(t.Notification.Type), string(NotificationTypeNone)) {
+		t.Notification.Type = NotificationTypeNone
+	} else if strings.EqualFold(string(t.Notification.Type), string(NotificationTypeOnce)) {
+		t.Notification.Type = NotificationTypeOnce
+	} else if len(t.Notification.Type) > 0 {
+		return errors.New(fmt.Sprintf("notification type %s unknown.", t.Notification.Type))
+	}
+	return nil
+}
+
+type notificationType string
+
+const (
+	NotificationTypeNone notificationType = "none"
+	NotificationTypeOnce notificationType = "once"
+)
+
+type notification struct {
+	Type       notificationType `yaml:"type"`
+	NotifiedAt time.Time        `yaml:"notifiedAt,omitempty"`
 }
 
 // complete performs bash command line completion for defined flags
@@ -368,7 +412,7 @@ func (server *server) run() {
 		}
 	}()
 
-	if err := server.loop(ctx, config); err != nil {
+	if err := server.loop(ctx); err != nil {
 		log.Fatalf("%s\n", err)
 	}
 
@@ -377,13 +421,28 @@ func (server *server) run() {
 	}()
 }
 
-func (server *server) loop(ctx context.Context, config config) error {
+func (server *server) loop(ctx context.Context) error {
 	for {
 		select {
 		case <-ctx.Done():
 			return nil
-		case <-time.Tick(config.tick):
-			fmt.Println("Tick :-)")
+		case <-time.Tick(server.app.config.tick):
+			err := server.handleNotifications()
+			if err != nil {
+				return err
+			}
 		}
 	}
+}
+
+func (server *server) handleNotifications() error {
+	todos := server.app.findWhereDueBeforeAndByNotificationTypeAndNotifiedAtEmpty(time.Now(), NotificationTypeOnce)
+	fmt.Printf("Found %d todos to be notified right now.\n", len(todos))
+	cmd := exec.Command(server.app.config.notificationCmd, "test")
+	stdout, err := cmd.Output()
+	if err != nil {
+		_ = fmt.Errorf("error calling notification: %s\n.", err)
+	}
+	fmt.Printf("%s", stdout)
+	return nil
 }
