@@ -337,12 +337,12 @@ func loadConfig() config {
 	config := config{}
 	prop, err := properties.LoadFile(todoDir+"/todo.properties", properties.UTF8)
 	if err != nil {
-		log.Printf("No config loaded due to error: %s\n, using Defaults", err)
+		log.Printf("No config loaded due to error: %s, using Defaults\n", err)
 		todoDir = homeDir + "/.todo"
 	} else {
 		err = prop.Decode(&config)
 		if err != nil {
-			log.Printf("No config loaded due to error: %s\n, using Defaults", err)
+			log.Printf("No config loaded due to error: %s, using Defaults\n", err)
 			todoDir = homeDir + "/.todo"
 		}
 	}
@@ -350,7 +350,7 @@ func loadConfig() config {
 		config.TodoDir = todoDir
 	}
 	if config.Tick == 0 {
-		config.Tick = 1 + time.Second
+		config.Tick = 1 * time.Second
 	}
 	if len(config.NotificationCmd) == 0 {
 		config.NotificationCmd = "./notification.example"
