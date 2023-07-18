@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/google/uuid"
+	"github.com/magiconair/properties"
 	"gopkg.in/yaml.v3"
 	"log"
 	"os"
@@ -45,7 +46,7 @@ func main() {
 }
 
 func (cli *cli) run() {
-	config := createDefaultConfig()
+	config := loadConfig()
 	cli.app.reloadConfig(config)
 
 	var command *string
@@ -215,18 +216,26 @@ func (app *todoApp) find(searchFor string) *todo {
 	return matching
 }
 
+func (app *todoApp) markNotified(todoId uuid.UUID) {
+	todo, err := app.readEntryById(todoId)
+	if err != nil {
+		log.Printf("Could not mark todo as notified: %s", err)
+	}
+	todo.Notification.NotifiedAt = time.Now()
+	fmt.Printf("TODO: this todo needs to be persisted: %v\n", todo)
+}
+
 func (app *todoApp) add(title string) {
 	todoDir, err := app.findTodoDir()
 	if err != nil {
 		todoDir = app.createTodoDir()
 	}
-	filename := title + ".yml"
-	fileContent := todo{Title: title, Id: uuid.New(), Due: time.Now().Add(24 * time.Hour), Notification: notification{Type: NotificationTypeOnce}}
-	marshal, err := yaml.Marshal(&fileContent)
+	todo := todo{Title: title, Id: uuid.New(), Due: time.Now().Add(24 * time.Hour), Notification: notification{Type: NotificationTypeOnce}}
+	fileContent, err := yaml.Marshal(&todo)
 	if err != nil {
 		log.Fatalf("Failed to write file: %s\n", err)
 	}
-	err = os.WriteFile(todoDir+"/"+filename, marshal, os.FileMode(0777))
+	err = os.WriteFile(todoDir+"/"+todo.getRelativeFilepath(), fileContent, os.FileMode(0777))
 	if err != nil {
 		log.Fatalf("Failed to write entry: %s\n", err)
 	}
@@ -241,6 +250,18 @@ func (app *todoApp) readAllEntries() []todo {
 	return todos
 }
 
+func (app *todoApp) readEntryById(id uuid.UUID) (todo, error) {
+	otherIdAsString := id.String()
+	entries := app.scanEntries()
+	for _, entry := range entries {
+		todo := app.readEntryFromFile(entry)
+		if strings.EqualFold(todo.Id.String(), otherIdAsString) {
+			return todo, nil
+		}
+	}
+	return todo{}, errors.New("no todo present with if " + otherIdAsString)
+}
+
 func (app *todoApp) scanEntries() []string {
 	entries := make([]string, 0)
 	todoDir, err := app.findTodoDir()
@@ -250,7 +271,7 @@ func (app *todoApp) scanEntries() []string {
 	files, err := os.ReadDir(todoDir)
 	if err == nil {
 		for _, file := range files {
-			if !file.IsDir() {
+			if !file.IsDir() && !strings.EqualFold("todo.properties", file.Name()) {
 				entries = append(entries, filepath.Join(todoDir, file.Name()))
 			}
 		}
@@ -273,13 +294,14 @@ func (app *todoApp) readEntryFromFile(pathToFile string) todo {
 	if err != nil {
 		log.Fatalf("Failed to validate todo from file %s: %s", pathToFile, err)
 	}
+	entry.filepath = pathToFile
 	return entry
 }
 
 func (app *todoApp) findTodoDir() (string, error) {
-	stat, err := os.Stat(app.config.todoDir)
+	stat, err := os.Stat(app.config.TodoDir)
 	if !os.IsNotExist(err) && stat.IsDir() {
-		return app.config.todoDir, nil
+		return app.config.TodoDir, nil
 	} else if os.IsNotExist(err) {
 		return "", errors.New(".todo directory does not exist")
 	} else if !stat.IsDir() {
@@ -290,26 +312,50 @@ func (app *todoApp) findTodoDir() (string, error) {
 }
 
 func (app *todoApp) createTodoDir() string {
-	err := os.MkdirAll(app.config.todoDir, os.FileMode(0777))
+	err := os.MkdirAll(app.config.TodoDir, os.FileMode(0777))
 	if err != nil {
 		log.Fatal("Error writing .todo directory: ", err)
 	}
-	return app.config.todoDir
+	return app.config.TodoDir
 }
 
 type config struct {
-	todoDir         string
-	tick            time.Duration
-	notificationCmd string
+	TodoDir         string        `properties:"todoDir,default="`
+	Tick            time.Duration `properties:"tick,default=0"`
+	NotificationCmd string        `properties:"notification_command,default="`
 }
 
-func createDefaultConfig() config {
+func loadConfig() config {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		log.Fatal("Error getting home directory: ", err)
 	}
-	todoDir := homeDir + "/.todo"
-	return config{todoDir: todoDir, tick: 1 * time.Second, notificationCmd: "echo"}
+	todoDir, specified := os.LookupEnv("TODO_USER_HOME")
+	if !specified {
+		todoDir = homeDir + "/.todo"
+	}
+	config := config{}
+	prop, err := properties.LoadFile(todoDir+"/todo.properties", properties.UTF8)
+	if err != nil {
+		log.Printf("No config loaded due to error: %s\n, using Defaults", err)
+		todoDir = homeDir + "/.todo"
+	} else {
+		err = prop.Decode(&config)
+		if err != nil {
+			log.Printf("No config loaded due to error: %s\n, using Defaults", err)
+			todoDir = homeDir + "/.todo"
+		}
+	}
+	if len(config.TodoDir) == 0 {
+		config.TodoDir = todoDir
+	}
+	if config.Tick == 0 {
+		config.Tick = 1 + time.Second
+	}
+	if len(config.NotificationCmd) == 0 {
+		config.NotificationCmd = "./notification.example"
+	}
+	return config
 }
 
 type todo struct {
@@ -318,6 +364,7 @@ type todo struct {
 	Due          time.Time    `yaml:"due,omitempty"`
 	Id           uuid.UUID    `yaml:"id"`
 	Notification notification `yaml:"notification"`
+	filepath     string
 }
 
 func (t *todo) validate() error {
@@ -329,6 +376,14 @@ func (t *todo) validate() error {
 		return errors.New(fmt.Sprintf("notification type %s unknown.", t.Notification.Type))
 	}
 	return nil
+}
+
+func (t *todo) getRelativeFilepath() string {
+	if len(t.filepath) > 0 {
+		return t.filepath
+	} else {
+		return t.Title + ".yml"
+	}
 }
 
 type notificationType string
@@ -379,7 +434,7 @@ type server struct {
 }
 
 func (server *server) run() {
-	config := createDefaultConfig()
+	config := loadConfig()
 	server.app.reloadConfig(config)
 
 	ctx := context.Background()
@@ -399,7 +454,7 @@ func (server *server) run() {
 			case s := <-signalChan:
 				switch s {
 				case syscall.SIGHUP:
-					config = createDefaultConfig()
+					config = loadConfig()
 					server.app.reloadConfig(config)
 				case os.Interrupt:
 					cancel()
@@ -426,7 +481,7 @@ func (server *server) loop(ctx context.Context) error {
 		select {
 		case <-ctx.Done():
 			return nil
-		case <-time.Tick(server.app.config.tick):
+		case <-time.Tick(server.app.config.Tick):
 			err := server.handleNotifications()
 			if err != nil {
 				return err
@@ -437,12 +492,16 @@ func (server *server) loop(ctx context.Context) error {
 
 func (server *server) handleNotifications() error {
 	todos := server.app.findWhereDueBeforeAndByNotificationTypeAndNotifiedAtEmpty(time.Now(), NotificationTypeOnce)
-	fmt.Printf("Found %d todos to be notified right now.\n", len(todos))
-	cmd := exec.Command(server.app.config.notificationCmd, "test")
-	stdout, err := cmd.Output()
-	if err != nil {
-		_ = fmt.Errorf("error calling notification: %s\n.", err)
+	for _, todo := range todos {
+		cmd := exec.Command(server.app.config.NotificationCmd, "test", todo.Title)
+		stdout, err := cmd.Output()
+		if err == nil {
+			log.Printf("Result of executing notification command: %s", stdout)
+			server.app.markNotified(todo.Id)
+		}
+		if err != nil {
+			log.Printf("Error executing notification command: %s\n.", err)
+		}
 	}
-	fmt.Printf("%s", stdout)
 	return nil
 }
