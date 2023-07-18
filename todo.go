@@ -6,6 +6,8 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"fyne.io/systray"
+	"fyne.io/systray/example/icon"
 	"github.com/google/uuid"
 	"github.com/magiconair/properties"
 	"gopkg.in/yaml.v3"
@@ -22,6 +24,7 @@ import (
 func main() {
 	debug := flag.Bool("debug", false, "enable debugging messages")
 	runAsServer := flag.Bool("server", false, "run server instance")
+	runInTray := flag.Bool("tray", false, "run in tray - does not do anything when not run as server")
 
 	// Perform command line completion if called from completion library
 	complete()
@@ -36,7 +39,10 @@ func main() {
 	app := &todoApp{}
 
 	if *runAsServer {
-		server := server{app}
+		server := server{app: app}
+		if *runInTray {
+			server.runSysTray()
+		}
 		server.run()
 		os.Exit(0)
 	}
@@ -430,22 +436,23 @@ func complete() {
 }
 
 type server struct {
-	app *todoApp
+	app    *todoApp
+	ctx    context.Context
+	cancel context.CancelFunc
 }
 
 func (server *server) run() {
 	config := loadConfig()
 	server.app.reloadConfig(config)
 
-	ctx := context.Background()
-	ctx, cancel := context.WithCancel(ctx)
+	server.ctx, server.cancel = context.WithCancel(context.Background())
 
 	signalChan := make(chan os.Signal, 1)
 	signal.Notify(signalChan, os.Interrupt, syscall.SIGHUP)
 
 	defer func() {
 		signal.Stop(signalChan)
-		cancel()
+		server.cancel()
 	}()
 
 	go func() {
@@ -457,22 +464,22 @@ func (server *server) run() {
 					config = loadConfig()
 					server.app.reloadConfig(config)
 				case os.Interrupt:
-					cancel()
+					server.cancel()
 					os.Exit(1)
 				}
-			case <-ctx.Done():
-				log.Printf("Done.")
+			case <-server.ctx.Done():
+				log.Printf("Done.\n")
 				os.Exit(1)
 			}
 		}
 	}()
 
-	if err := server.loop(ctx); err != nil {
+	if err := server.loop(server.ctx); err != nil {
 		log.Fatalf("%s\n", err)
 	}
 
 	defer func() {
-		cancel()
+		server.cancel()
 	}()
 }
 
@@ -504,4 +511,24 @@ func (server *server) handleNotifications() error {
 		}
 	}
 	return nil
+}
+
+func (server *server) runSysTray() {
+	go systray.Run(server.onReady, server.onExit)
+}
+
+func (server *server) onReady() {
+	systray.SetIcon(icon.Data)
+	systray.SetTitle("Todo App")
+	systray.SetTooltip("Todo App - Server Instance")
+	mQuit := systray.AddMenuItem("Quit", "Quit the server instance")
+
+	go func() {
+		<-mQuit.ClickedCh
+		systray.Quit()
+	}()
+}
+
+func (server *server) onExit() {
+	server.cancel()
 }
