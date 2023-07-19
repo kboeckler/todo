@@ -7,7 +7,6 @@ import (
 	"flag"
 	"fmt"
 	"fyne.io/systray"
-	"fyne.io/systray/example/icon"
 	"github.com/google/uuid"
 	"github.com/magiconair/properties"
 	"gopkg.in/yaml.v3"
@@ -518,7 +517,12 @@ func (server *server) runSysTray() {
 }
 
 func (server *server) onReady() {
-	systray.SetIcon(icon.Data)
+	file, err := os.ReadFile("todo.ico")
+	if err != nil {
+		log.Fatalf("Error reading ico: %s", err)
+	}
+
+	systray.SetIcon(file)
 	systray.SetTitle("Todo App")
 	systray.SetTooltip("Todo App - Server Instance")
 	mQuit := systray.AddMenuItem("Quit", "Quit the server instance")
