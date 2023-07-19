@@ -517,15 +517,14 @@ func (server *server) runSysTray() {
 }
 
 func (server *server) onReady() {
-	file, err := os.ReadFile("todo.ico")
+	file, err := os.ReadFile("todo.png")
 	if err != nil {
-		log.Fatalf("Error reading ico: %s", err)
+		log.Fatalf("Error reading logo: %s", err)
 	}
-
 	systray.SetIcon(file)
 	systray.SetTitle("Todo App")
 	systray.SetTooltip("Todo App - Server Instance")
-	mQuit := systray.AddMenuItem("Quit", "Quit the server instance")
+	mQuit := systray.AddMenuItem("Quit server instance", "Quit the server instance")
 
 	go func() {
 		<-mQuit.ClickedCh
