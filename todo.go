@@ -328,6 +328,7 @@ type config struct {
 	TodoDir         string        `properties:"todoDir,default="`
 	Tick            time.Duration `properties:"tick,default=0"`
 	NotificationCmd string        `properties:"notification_command,default="`
+	TrayIcon        string        `properties:"tray_icon,default="`
 }
 
 func loadConfig() config {
@@ -359,6 +360,9 @@ func loadConfig() config {
 	}
 	if len(config.NotificationCmd) == 0 {
 		config.NotificationCmd = "./notification.example"
+	}
+	if len(config.TrayIcon) == 0 {
+		config.TrayIcon = "todo.png"
 	}
 	return config
 }
@@ -517,7 +521,7 @@ func (server *server) runSysTray() {
 }
 
 func (server *server) onReady() {
-	file, err := os.ReadFile("todo.png")
+	file, err := os.ReadFile(server.app.config.TrayIcon)
 	if err != nil {
 		log.Fatalf("Error reading logo: %s", err)
 	}
