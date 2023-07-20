@@ -37,6 +37,9 @@ func main() {
 
 	app := &todoApp{}
 
+	config := loadConfig()
+	app.reloadConfig(config)
+
 	if *runAsServer {
 		server := server{app: app}
 		if *runInTray {
@@ -51,9 +54,6 @@ func main() {
 }
 
 func (cli *cli) run() {
-	config := loadConfig()
-	cli.app.reloadConfig(config)
-
 	var command *string
 	var arguments []string
 	args := flag.Args()
@@ -359,7 +359,7 @@ func loadConfig() config {
 		config.Tick = 1 * time.Second
 	}
 	if len(config.NotificationCmd) == 0 {
-		config.NotificationCmd = "./notification.example"
+		config.NotificationCmd = "./notification.example.sh"
 	}
 	if len(config.TrayIcon) == 0 {
 		config.TrayIcon = "todo.png"
@@ -445,9 +445,6 @@ type server struct {
 }
 
 func (server *server) run() {
-	config := loadConfig()
-	server.app.reloadConfig(config)
-
 	server.ctx, server.cancel = context.WithCancel(context.Background())
 
 	signalChan := make(chan os.Signal, 1)
@@ -464,7 +461,7 @@ func (server *server) run() {
 			case s := <-signalChan:
 				switch s {
 				case syscall.SIGHUP:
-					config = loadConfig()
+					config := loadConfig()
 					server.app.reloadConfig(config)
 				case os.Interrupt:
 					server.cancel()
@@ -510,7 +507,12 @@ func (server *server) handleNotifications() error {
 			server.app.markNotified(todo.Id)
 		}
 		if err != nil {
-			log.Printf("Error executing notification command: %s\n.", err)
+			exitErr, ok := err.(*exec.ExitError)
+			debugError := "{}"
+			if ok {
+				debugError = string(exitErr.Stderr)
+			}
+			log.Printf("Error executing notification command: %s: %s\n.", err, debugError)
 		}
 	}
 	return nil
@@ -523,7 +525,7 @@ func (server *server) runSysTray() {
 func (server *server) onReady() {
 	file, err := os.ReadFile(server.app.config.TrayIcon)
 	if err != nil {
-		log.Fatalf("Error reading logo: %s", err)
+		log.Printf("Error reading icon from file %s: %s\n", server.app.config.TrayIcon, err)
 	}
 	systray.SetIcon(file)
 	systray.SetTitle("Todo App")
