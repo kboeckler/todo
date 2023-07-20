@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=Todo
+StartupWMClass=Todo
+Comment=Todo Desktop
+GenericName=Todo Server Instance
+Exec=todo -server -tray
+Icon=somewhere/todo.png
+Type=Application
+StartupNotify=false
+Categories=GNOME;GTK;Network;InstantMessaging;
+MimeType=x-scheme-handler/todo;

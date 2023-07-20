@@ -1,2 +1,2 @@
 #!/bin/bash
-echo "Simulating notification with" "$#" "parameters:" "$@"
+notify-send -a "Todo" --hint='string:desktop-entry:todo' $@
