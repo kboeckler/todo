@@ -153,7 +153,10 @@ func (cli *cli) add(arguments []string) {
 		}
 	}
 	title := buffer.String()
-	cli.app.add(title)
+	err := cli.app.add(title)
+	if err != nil {
+		fmt.Printf("Could not create %s. Maybe this entry already exists?\n", title)
+	}
 }
 
 type todoApp struct {
@@ -221,26 +224,45 @@ func (app *todoApp) find(searchFor string) *todo {
 	return matching
 }
 
+func (app *todoApp) add(title string) error {
+	todo := todo{Title: title, Id: uuid.New(), Due: time.Now().Add(24 * time.Hour), Notification: notification{Type: NotificationTypeOnce}}
+	return app.insertEntry(todo, todo.Title+".yml")
+}
+
 func (app *todoApp) markNotified(todoId uuid.UUID) {
 	todo, err := app.readEntryById(todoId)
 	if err != nil {
 		log.Printf("Could not mark todo as notified: %s", err)
 	}
 	todo.Notification.NotifiedAt = time.Now()
-	fmt.Printf("TODO: this todo needs to be persisted: %v\n", todo)
+	app.updateEntry(todo)
 }
 
-func (app *todoApp) add(title string) {
+func (app *todoApp) insertEntry(todo todo, fileName string) error {
 	todoDir, err := app.findTodoDir()
 	if err != nil {
 		todoDir = app.createTodoDir()
 	}
-	todo := todo{Title: title, Id: uuid.New(), Due: time.Now().Add(24 * time.Hour), Notification: notification{Type: NotificationTypeOnce}}
+	filePath := todoDir + "/" + fileName
+	_, err = os.Stat(filePath)
+	if err == nil {
+		return errors.New("file already exists")
+	}
+	todo.filepath = filePath
+	app.writeEntry(todo)
+	return nil
+}
+
+func (app *todoApp) updateEntry(todo todo) {
+	app.writeEntry(todo)
+}
+
+func (app *todoApp) writeEntry(todo todo) {
 	fileContent, err := yaml.Marshal(&todo)
 	if err != nil {
 		log.Fatalf("Failed to write file: %s\n", err)
 	}
-	err = os.WriteFile(todoDir+"/"+todo.getRelativeFilepath(), fileContent, os.FileMode(0777))
+	err = os.WriteFile(todo.filepath, fileContent, os.FileMode(0777))
 	if err != nil {
 		log.Fatalf("Failed to write entry: %s\n", err)
 	}
@@ -385,14 +407,6 @@ func (t *todo) validate() error {
 		return errors.New(fmt.Sprintf("notification type %s unknown.", t.Notification.Type))
 	}
 	return nil
-}
-
-func (t *todo) getRelativeFilepath() string {
-	if len(t.filepath) > 0 {
-		return t.filepath
-	} else {
-		return t.Title + ".yml"
-	}
 }
 
 type notificationType string
