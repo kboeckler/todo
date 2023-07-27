@@ -23,9 +23,6 @@ func main() {
 	runAsServer := flag.Bool("server", false, "run server instance")
 	runInTray := flag.Bool("tray", false, "run in tray - does not do anything when not run as server")
 
-	// Perform command line completion if called from completion library
-	complete()
-
 	flag.Parse()
 
 	if *debug {
