@@ -33,6 +33,10 @@ func (repo *repository) updateEntry(todo todo) {
 	repo.writeEntry(todo)
 }
 
+func (repo *repository) deleteEntry(todo todo) {
+	repo.deleteEntryInternal(todo)
+}
+
 func (repo *repository) writeEntry(todo todo) {
 	fileContent, err := yaml.Marshal(&todo)
 	if err != nil {
@@ -41,6 +45,13 @@ func (repo *repository) writeEntry(todo todo) {
 	err = os.WriteFile(todo.filepath, fileContent, os.FileMode(0777))
 	if err != nil {
 		log.Fatalf("Failed to write entry: %s\n", err)
+	}
+}
+
+func (repo *repository) deleteEntryInternal(todo todo) {
+	err := os.Remove(todo.filepath)
+	if err != nil {
+		log.Fatalf("Failed to delete entry: %s\n", err)
 	}
 }
 
@@ -62,7 +73,7 @@ func (repo *repository) readEntryById(id uuid.UUID) (todo, error) {
 			return todo, nil
 		}
 	}
-	return todo{}, errors.New("no todo present with if " + otherIdAsString)
+	return todo{}, errors.New("no todo present with id " + otherIdAsString)
 }
 
 func (repo *repository) scanEntries() []string {

@@ -81,6 +81,13 @@ func (cli *cli) run() {
 		cli.add(arguments)
 		os.Exit(0)
 	}
+	if *command == "del" {
+		err := cli.del(arguments)
+		if err != nil {
+			log.Fatalf("Cannot delete. Reason: %s\n", err)
+		}
+		os.Exit(0)
+	}
 	if *command == "due" {
 		cli.due()
 		os.Exit(0)
@@ -154,6 +161,27 @@ func (cli *cli) add(arguments []string) {
 	}
 }
 
+func (cli *cli) del(arguments []string) error {
+	searchFor := arguments[0]
+	if len(arguments) == 0 {
+		return errors.New("invalid parameter for show")
+	} else {
+		searchFor = arguments[0]
+	}
+	if len(arguments) > 1 {
+		return errors.New("invalid parameter for show")
+	}
+
+	entry := cli.app.find(searchFor)
+
+	if entry == nil {
+		fmt.Printf("No entry found matching %s\n", searchFor)
+		return nil
+	}
+
+	return cli.app.delete(entry.Id)
+}
+
 type todoApp struct {
 	config config
 	repo   *repository
@@ -224,6 +252,15 @@ func (app *todoApp) find(searchFor string) *todo {
 func (app *todoApp) add(title string) error {
 	todo := todo{Title: title, Id: uuid.New(), Due: time.Now().Add(24 * time.Hour), Notification: notification{Type: NotificationTypeOnce}}
 	return app.repo.insertEntry(todo, todo.Title+".yml")
+}
+
+func (app *todoApp) delete(todoId uuid.UUID) error {
+	todo, err := app.repo.readEntryById(todoId)
+	if err != nil {
+		return err
+	}
+	app.repo.deleteEntry(todo)
+	return nil
 }
 
 func (app *todoApp) markNotified(todoId uuid.UUID) {
