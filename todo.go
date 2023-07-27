@@ -35,7 +35,7 @@ func main() {
 		fmt.Printf("  debug:    %v\n", *debug)
 	}
 
-	app := &todoApp{}
+	app := &todoApp{repo: &repository{}}
 
 	config := loadConfig()
 	app.reloadConfig(config)
@@ -161,18 +161,20 @@ func (cli *cli) add(arguments []string) {
 
 type todoApp struct {
 	config config
+	repo   *repository
 }
 
 func (app *todoApp) reloadConfig(config config) {
 	app.config = config
+	app.repo.config = config
 }
 
 func (app *todoApp) findAll() []todo {
-	return app.readAllEntries()
+	return app.repo.readAllEntries()
 }
 
 func (app *todoApp) findWhereDueBefore(due time.Time) []todo {
-	todos := app.readAllEntries()
+	todos := app.repo.readAllEntries()
 
 	matching := make([]todo, 0)
 
@@ -186,7 +188,7 @@ func (app *todoApp) findWhereDueBefore(due time.Time) []todo {
 }
 
 func (app *todoApp) findWhereDueBeforeAndByNotificationTypeAndNotifiedAtEmpty(due time.Time, notType notificationType) []todo {
-	todos := app.readAllEntries()
+	todos := app.repo.readAllEntries()
 
 	matching := make([]todo, 0)
 
@@ -200,7 +202,7 @@ func (app *todoApp) findWhereDueBeforeAndByNotificationTypeAndNotifiedAtEmpty(du
 }
 
 func (app *todoApp) find(searchFor string) *todo {
-	todos := app.readAllEntries()
+	todos := app.repo.readAllEntries()
 
 	var matching *todo
 
@@ -226,22 +228,26 @@ func (app *todoApp) find(searchFor string) *todo {
 
 func (app *todoApp) add(title string) error {
 	todo := todo{Title: title, Id: uuid.New(), Due: time.Now().Add(24 * time.Hour), Notification: notification{Type: NotificationTypeOnce}}
-	return app.insertEntry(todo, todo.Title+".yml")
+	return app.repo.insertEntry(todo, todo.Title+".yml")
 }
 
 func (app *todoApp) markNotified(todoId uuid.UUID) {
-	todo, err := app.readEntryById(todoId)
+	todo, err := app.repo.readEntryById(todoId)
 	if err != nil {
 		log.Printf("Could not mark todo as notified: %s", err)
 	}
 	todo.Notification.NotifiedAt = time.Now()
-	app.updateEntry(todo)
+	app.repo.updateEntry(todo)
 }
 
-func (app *todoApp) insertEntry(todo todo, fileName string) error {
-	todoDir, err := app.findTodoDir()
+type repository struct {
+	config config
+}
+
+func (repo *repository) insertEntry(todo todo, fileName string) error {
+	todoDir, err := repo.findTodoDir()
 	if err != nil {
-		todoDir = app.createTodoDir()
+		todoDir = repo.createTodoDir()
 	}
 	filePath := todoDir + "/" + fileName
 	_, err = os.Stat(filePath)
@@ -249,15 +255,15 @@ func (app *todoApp) insertEntry(todo todo, fileName string) error {
 		return errors.New("file already exists")
 	}
 	todo.filepath = filePath
-	app.writeEntry(todo)
+	repo.writeEntry(todo)
 	return nil
 }
 
-func (app *todoApp) updateEntry(todo todo) {
-	app.writeEntry(todo)
+func (repo *repository) updateEntry(todo todo) {
+	repo.writeEntry(todo)
 }
 
-func (app *todoApp) writeEntry(todo todo) {
+func (repo *repository) writeEntry(todo todo) {
 	fileContent, err := yaml.Marshal(&todo)
 	if err != nil {
 		log.Fatalf("Failed to write file: %s\n", err)
@@ -268,20 +274,20 @@ func (app *todoApp) writeEntry(todo todo) {
 	}
 }
 
-func (app *todoApp) readAllEntries() []todo {
-	entries := app.scanEntries()
+func (repo *repository) readAllEntries() []todo {
+	entries := repo.scanEntries()
 	todos := make([]todo, len(entries))
 	for i := 0; i < len(entries); i++ {
-		todos[i] = app.readEntryFromFile(entries[i])
+		todos[i] = repo.readEntryFromFile(entries[i])
 	}
 	return todos
 }
 
-func (app *todoApp) readEntryById(id uuid.UUID) (todo, error) {
+func (repo *repository) readEntryById(id uuid.UUID) (todo, error) {
 	otherIdAsString := id.String()
-	entries := app.scanEntries()
+	entries := repo.scanEntries()
 	for _, entry := range entries {
-		todo := app.readEntryFromFile(entry)
+		todo := repo.readEntryFromFile(entry)
 		if strings.EqualFold(todo.Id.String(), otherIdAsString) {
 			return todo, nil
 		}
@@ -289,9 +295,9 @@ func (app *todoApp) readEntryById(id uuid.UUID) (todo, error) {
 	return todo{}, errors.New("no todo present with if " + otherIdAsString)
 }
 
-func (app *todoApp) scanEntries() []string {
+func (repo *repository) scanEntries() []string {
 	entries := make([]string, 0)
-	todoDir, err := app.findTodoDir()
+	todoDir, err := repo.findTodoDir()
 	if err != nil {
 		return entries
 	}
@@ -306,7 +312,7 @@ func (app *todoApp) scanEntries() []string {
 	return entries
 }
 
-func (app *todoApp) readEntryFromFile(pathToFile string) todo {
+func (repo *repository) readEntryFromFile(pathToFile string) todo {
 	content, err := os.ReadFile(pathToFile)
 	if err != nil {
 		log.Fatalf("Failed to read entry from file %s: %s", pathToFile, err)
@@ -325,10 +331,10 @@ func (app *todoApp) readEntryFromFile(pathToFile string) todo {
 	return entry
 }
 
-func (app *todoApp) findTodoDir() (string, error) {
-	stat, err := os.Stat(app.config.TodoDir)
+func (repo *repository) findTodoDir() (string, error) {
+	stat, err := os.Stat(repo.config.TodoDir)
 	if !os.IsNotExist(err) && stat.IsDir() {
-		return app.config.TodoDir, nil
+		return repo.config.TodoDir, nil
 	} else if os.IsNotExist(err) {
 		return "", errors.New(".todo directory does not exist")
 	} else if !stat.IsDir() {
@@ -338,12 +344,12 @@ func (app *todoApp) findTodoDir() (string, error) {
 	return "", nil
 }
 
-func (app *todoApp) createTodoDir() string {
-	err := os.MkdirAll(app.config.TodoDir, os.FileMode(0777))
+func (repo *repository) createTodoDir() string {
+	err := os.MkdirAll(repo.config.TodoDir, os.FileMode(0777))
 	if err != nil {
 		log.Fatal("Error writing .todo directory: ", err)
 	}
-	return app.config.TodoDir
+	return repo.config.TodoDir
 }
 
 type config struct {
