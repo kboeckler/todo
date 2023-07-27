@@ -65,8 +65,16 @@ func (cli *cli) run() {
 		flag.Usage()
 		os.Exit(0)
 	}
+	if *command == "add" {
+		cli.add(arguments)
+		os.Exit(0)
+	}
 	if *command == "list" {
 		cli.list()
+		os.Exit(0)
+	}
+	if *command == "due" {
+		cli.due()
 		os.Exit(0)
 	}
 	if *command == "show" {
@@ -77,10 +85,6 @@ func (cli *cli) run() {
 			os.Exit(0)
 		}
 	}
-	if *command == "add" {
-		cli.add(arguments)
-		os.Exit(0)
-	}
 	if *command == "del" {
 		err := cli.del(arguments)
 		if err != nil {
@@ -88,8 +92,11 @@ func (cli *cli) run() {
 		}
 		os.Exit(0)
 	}
-	if *command == "due" {
-		cli.due()
+	if *command == "snooze" {
+		err := cli.snooze(arguments)
+		if err != nil {
+			log.Fatalf("Cannot snooze. Reason: %s\n", err)
+		}
 		os.Exit(0)
 	}
 }
@@ -98,8 +105,32 @@ type cli struct {
 	app *todoApp
 }
 
+func (cli *cli) add(arguments []string) {
+	buffer := &bytes.Buffer{}
+	for i := 0; i < len(arguments); i++ {
+		argument := arguments[i]
+		buffer.WriteString(argument)
+		if i < len(arguments)-1 {
+			buffer.WriteRune(' ')
+		}
+	}
+	title := buffer.String()
+	err := cli.app.add(title)
+	if err != nil {
+		fmt.Printf("Could not create %s. Maybe this entry already exists?\n", title)
+	}
+}
+
 func (cli *cli) list() {
 	entries := cli.app.findAll()
+
+	for _, entry := range entries {
+		fmt.Printf("%s Title: %s, Details: %s, Due: %s, Notification: %v\n", entry.Id, entry.Title, entry.Details, entry.Due, entry.Notification)
+	}
+}
+
+func (cli *cli) due() {
+	entries := cli.app.findWhereDueBefore(time.Now())
 
 	for _, entry := range entries {
 		fmt.Printf("%s Title: %s, Details: %s, Due: %s, Notification: %v\n", entry.Id, entry.Title, entry.Details, entry.Due, entry.Notification)
@@ -137,39 +168,15 @@ func (cli *cli) show(arguments []string) error {
 	return nil
 }
 
-func (cli *cli) due() {
-	entries := cli.app.findWhereDueBefore(time.Now())
-
-	for _, entry := range entries {
-		fmt.Printf("%s Title: %s, Details: %s, Due: %s, Notification: %v\n", entry.Id, entry.Title, entry.Details, entry.Due, entry.Notification)
-	}
-}
-
-func (cli *cli) add(arguments []string) {
-	buffer := &bytes.Buffer{}
-	for i := 0; i < len(arguments); i++ {
-		argument := arguments[i]
-		buffer.WriteString(argument)
-		if i < len(arguments)-1 {
-			buffer.WriteRune(' ')
-		}
-	}
-	title := buffer.String()
-	err := cli.app.add(title)
-	if err != nil {
-		fmt.Printf("Could not create %s. Maybe this entry already exists?\n", title)
-	}
-}
-
 func (cli *cli) del(arguments []string) error {
-	searchFor := arguments[0]
+	var searchFor string
 	if len(arguments) == 0 {
-		return errors.New("invalid parameter for show")
+		return errors.New("invalid parameter for del")
 	} else {
 		searchFor = arguments[0]
 	}
 	if len(arguments) > 1 {
-		return errors.New("invalid parameter for show")
+		return errors.New("invalid parameter for del")
 	}
 
 	entry := cli.app.find(searchFor)
@@ -180,6 +187,36 @@ func (cli *cli) del(arguments []string) error {
 	}
 
 	return cli.app.delete(entry.Id)
+}
+
+func (cli *cli) snooze(arguments []string) error {
+	var searchFor string
+	snoozeFor := 1 * time.Hour
+	if len(arguments) == 0 {
+		return errors.New("invalid parameter for snooze")
+	} else {
+		searchFor = arguments[0]
+	}
+	if len(arguments) >= 2 {
+		var err error
+		snoozeFor, err = time.ParseDuration(arguments[1])
+		if err != nil {
+			return errors.New(fmt.Sprintf("invalid parameter for snooze: %s", err))
+		}
+	}
+	if len(arguments) > 2 {
+		return errors.New("invalid parameter for snooze")
+	}
+
+	entry := cli.app.find(searchFor)
+
+	if entry == nil {
+		fmt.Printf("No entry found matching %s\n", searchFor)
+		return nil
+	}
+
+	cli.app.setNewDue(entry.Id, time.Now().Add(snoozeFor))
+	return nil
 }
 
 type todoApp struct {
@@ -269,6 +306,16 @@ func (app *todoApp) markNotified(todoId uuid.UUID) {
 		log.Printf("Could not mark todo as notified: %s", err)
 	}
 	todo.Notification.NotifiedAt = time.Now()
+	app.repo.updateEntry(todo)
+}
+
+func (app *todoApp) setNewDue(todoId uuid.UUID, due time.Time) {
+	todo, err := app.repo.readEntryById(todoId)
+	if err != nil {
+		log.Printf("Could not set a new due date: %s", err)
+	}
+	todo.Due = due
+	todo.Notification.NotifiedAt = time.Time{}
 	app.repo.updateEntry(todo)
 }
 
