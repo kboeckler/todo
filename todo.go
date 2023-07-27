@@ -132,7 +132,7 @@ func (cli *cli) show(arguments []string) error {
 	if entry == nil {
 		fmt.Printf("No entry found matching %s\n", searchFor)
 	} else {
-		fmt.Printf("%s Title: %s, Details: %s, Due: %s\n", entry.Id, entry.Title, entry.Details, entry.Due)
+		fmt.Printf("%s Title: %s, Details: %s, Due: %s, Notification: %v\n", entry.Id, entry.Title, entry.Details, entry.Due, entry.Notification)
 	}
 	return nil
 }
@@ -141,7 +141,7 @@ func (cli *cli) due() {
 	entries := cli.app.findWhereDueBefore(time.Now())
 
 	for _, entry := range entries {
-		fmt.Printf("%s Title: %s, Details: %s, Due: %s\n", entry.Id, entry.Title, entry.Details, entry.Due)
+		fmt.Printf("%s Title: %s, Details: %s, Due: %s, Notification: %v\n", entry.Id, entry.Title, entry.Details, entry.Due, entry.Notification)
 	}
 }
 
