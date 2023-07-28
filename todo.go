@@ -353,9 +353,6 @@ func loadConfig() config {
 	if config.Tick == 0 {
 		config.Tick = 1 * time.Second
 	}
-	if len(config.NotificationCmd) == 0 {
-		config.NotificationCmd = "./notification.example.sh"
-	}
 	if len(config.TrayIcon) == 0 {
 		config.TrayIcon = "todo.png"
 	}
@@ -454,21 +451,23 @@ func (server *server) loop(ctx context.Context) error {
 }
 
 func (server *server) handleNotifications() error {
-	todos := server.app.findWhereDueBeforeAndByNotificationTypeAndNotifiedAtEmpty(time.Now(), NotificationTypeOnce)
-	for _, todo := range todos {
-		cmd := exec.Command(server.app.config.NotificationCmd, "test", todo.Title)
-		stdout, err := cmd.Output()
-		if err == nil {
-			log.Printf("Result of executing notification command: %s", stdout)
-			server.app.markNotified(todo.Id)
-		}
-		if err != nil {
-			exitErr, ok := err.(*exec.ExitError)
-			debugError := "{}"
-			if ok {
-				debugError = string(exitErr.Stderr)
+	if len(server.app.config.NotificationCmd) > 0 {
+		todos := server.app.findWhereDueBeforeAndByNotificationTypeAndNotifiedAtEmpty(time.Now(), NotificationTypeOnce)
+		for _, todo := range todos {
+			cmd := exec.Command(server.app.config.NotificationCmd, "test", todo.Title)
+			stdout, err := cmd.Output()
+			if err == nil {
+				log.Printf("Result of executing notification command: %s", stdout)
+				server.app.markNotified(todo.Id)
 			}
-			log.Printf("Error executing notification command: %s: %s\n.", err, debugError)
+			if err != nil {
+				exitErr, ok := err.(*exec.ExitError)
+				debugError := "{}"
+				if ok {
+					debugError = string(exitErr.Stderr)
+				}
+				log.Printf("Error executing notification command: %s: %s\n.", err, debugError)
+			}
 		}
 	}
 	return nil
