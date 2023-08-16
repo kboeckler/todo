@@ -57,6 +57,13 @@ func (cli *cli) run(args []string) {
 		}
 		os.Exit(0)
 	}
+	if *command == "resolve" {
+		err := cli.resolve(arguments)
+		if err != nil {
+			log.Fatalf("Cannot resolve. Reason: %s\n", err)
+		}
+		os.Exit(0)
+	}
 	if *command == "snooze" {
 		err := cli.snooze(arguments)
 		if err != nil {
@@ -148,6 +155,28 @@ func (cli *cli) del(arguments []string) error {
 	}
 
 	return cli.app.delete(entry.Id)
+}
+
+func (cli *cli) resolve(arguments []string) error {
+	var searchFor string
+	if len(arguments) == 0 {
+		return errors.New("invalid parameter for resolve")
+	} else {
+		searchFor = arguments[0]
+	}
+	if len(arguments) > 1 {
+		return errors.New("invalid parameter for resolve")
+	}
+
+	entry := cli.app.find(searchFor)
+
+	if entry == nil {
+		fmt.Printf("No entry found matching %s\n", searchFor)
+		return nil
+	}
+
+	cli.app.resolve(entry.Id)
+	return nil
 }
 
 func (cli *cli) snooze(arguments []string) error {

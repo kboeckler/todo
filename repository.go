@@ -36,6 +36,9 @@ func (repo *repository) updateEntry(todo todo) {
 func (repo *repository) deleteEntry(todo todo) {
 	repo.deleteEntryInternal(todo)
 }
+func (repo *repository) archiveEntry(todo todo) {
+	repo.moveEntryIntoArchive(todo)
+}
 
 func (repo *repository) writeEntry(todo todo) {
 	fileContent, err := yaml.Marshal(&todo)
@@ -52,6 +55,14 @@ func (repo *repository) deleteEntryInternal(todo todo) {
 	err := os.Remove(todo.filepath)
 	if err != nil {
 		log.Fatalf("Failed to delete entry: %s\n", err)
+	}
+}
+
+func (repo *repository) moveEntryIntoArchive(todo todo) {
+	// TODO create archive dir if not exists
+	err := os.Rename(todo.filepath, filepath.Join(filepath.Dir(todo.filepath), "archive", filepath.Base(todo.filepath)))
+	if err != nil {
+		log.Fatalf("Failed to move entry: %s\n", err)
 	}
 }
 

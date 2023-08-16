@@ -106,3 +106,11 @@ func (app *todoApp) setNewDue(todoId uuid.UUID, due time.Time) {
 	todo.Notification.NotifiedAt = time.Time{}
 	app.repo.updateEntry(todo)
 }
+
+func (app *todoApp) resolve(todoId uuid.UUID) {
+	todo, err := app.repo.readEntryById(todoId)
+	if err != nil {
+		log.Printf("Could not resolve todo: %s", err)
+	}
+	app.repo.archiveEntry(todo)
+}
