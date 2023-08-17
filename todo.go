@@ -87,6 +87,7 @@ type todo struct {
 	Due          time.Time    `yaml:"due,omitempty"`
 	Id           uuid.UUID    `yaml:"id"`
 	Notification notification `yaml:"notification"`
+	ResolvedAt   time.Time    `yaml:"resolvedAt"`
 	filepath     string
 }
 

@@ -112,5 +112,7 @@ func (app *todoApp) resolve(todoId uuid.UUID) {
 	if err != nil {
 		log.Printf("Could not resolve todo: %s", err)
 	}
+	todo.ResolvedAt = time.Now()
+	app.repo.updateEntry(todo)
 	app.repo.archiveEntry(todo)
 }
