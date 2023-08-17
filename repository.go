@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"github.com/google/uuid"
 	"gopkg.in/yaml.v3"
 	"log"
@@ -15,12 +16,12 @@ type repository struct {
 }
 
 func (repo *repository) insertEntry(todo todo, fileName string) error {
-	todoDir, err := repo.findTodoDir()
-	if err != nil {
-		todoDir = repo.createTodoDir()
+	todoDirExists, _ := repo.existsDir(repo.config.TodoDir)
+	if !todoDirExists {
+		repo.createDir(repo.config.TodoDir)
 	}
-	filePath := todoDir + "/" + fileName
-	_, err = os.Stat(filePath)
+	filePath := repo.config.TodoDir + "/" + fileName
+	_, err := os.Stat(filePath)
 	if err == nil {
 		return errors.New("file already exists")
 	}
@@ -59,8 +60,12 @@ func (repo *repository) deleteEntryInternal(todo todo) {
 }
 
 func (repo *repository) moveEntryIntoArchive(todo todo) {
-	// TODO create archive dir if not exists
-	err := os.Rename(todo.filepath, filepath.Join(filepath.Dir(todo.filepath), "archive", filepath.Base(todo.filepath)))
+	archiveDir := filepath.Join(repo.config.TodoDir, "archive")
+	archiveDirExists, _ := repo.existsDir(archiveDir)
+	if !archiveDirExists {
+		repo.createDir(archiveDir)
+	}
+	err := os.Rename(todo.filepath, filepath.Join(archiveDir, filepath.Base(todo.filepath)))
 	if err != nil {
 		log.Fatalf("Failed to move entry: %s\n", err)
 	}
@@ -89,15 +94,15 @@ func (repo *repository) readEntryById(id uuid.UUID) (todo, error) {
 
 func (repo *repository) scanEntries() []string {
 	entries := make([]string, 0)
-	todoDir, err := repo.findTodoDir()
-	if err != nil {
+	todoDirExists, err := repo.existsDir(repo.config.TodoDir)
+	if !todoDirExists {
 		return entries
 	}
-	files, err := os.ReadDir(todoDir)
+	files, err := os.ReadDir(repo.config.TodoDir)
 	if err == nil {
 		for _, file := range files {
 			if !file.IsDir() && !strings.EqualFold("todo.properties", file.Name()) {
-				entries = append(entries, filepath.Join(todoDir, file.Name()))
+				entries = append(entries, filepath.Join(repo.config.TodoDir, file.Name()))
 			}
 		}
 	}
@@ -123,23 +128,22 @@ func (repo *repository) readEntryFromFile(pathToFile string) todo {
 	return entry
 }
 
-func (repo *repository) findTodoDir() (string, error) {
-	stat, err := os.Stat(repo.config.TodoDir)
+func (repo *repository) existsDir(dirPath string) (bool, error) {
+	stat, err := os.Stat(dirPath)
 	if !os.IsNotExist(err) && stat.IsDir() {
-		return repo.config.TodoDir, nil
+		return true, nil
 	} else if os.IsNotExist(err) {
-		return "", errors.New(".todo directory does not exist")
+		return false, fmt.Errorf("%s directory does not exist", dirPath)
 	} else if !stat.IsDir() {
-		log.Fatal(".todo is present but not a directory")
+		log.Fatalf("%s is present but not a directory", dirPath)
 	}
-	log.Fatal("Error reading .todo directory: ", err)
-	return "", nil
+	log.Fatalf("Error reading %s directory: %s", dirPath, err)
+	return false, err
 }
 
-func (repo *repository) createTodoDir() string {
-	err := os.MkdirAll(repo.config.TodoDir, os.FileMode(0777))
+func (repo *repository) createDir(dirPath string) {
+	err := os.MkdirAll(dirPath, os.FileMode(0777))
 	if err != nil {
-		log.Fatal("Error writing .todo directory: ", err)
+		log.Fatalf("Error writing %s directory: %s", dirPath, err)
 	}
-	return repo.config.TodoDir
 }
