@@ -74,8 +74,17 @@ func (cli *cli) run(args []string) {
 }
 
 func (cli *cli) add(arguments []string) {
+	due := time.Now().Add(24 * time.Hour)
+	lastTitleArgumentIndex := len(arguments) - 1
+	if len(arguments) >= 2 {
+		parsedDueIn, err := time.ParseDuration(arguments[len(arguments)-1])
+		if err == nil {
+			due = time.Now().Add(parsedDueIn)
+			lastTitleArgumentIndex--
+		}
+	}
 	buffer := &bytes.Buffer{}
-	for i := 0; i < len(arguments); i++ {
+	for i := 0; i <= lastTitleArgumentIndex; i++ {
 		argument := arguments[i]
 		buffer.WriteString(argument)
 		if i < len(arguments)-1 {
@@ -83,7 +92,7 @@ func (cli *cli) add(arguments []string) {
 		}
 	}
 	title := buffer.String()
-	err := cli.app.add(title)
+	err := cli.app.add(title, due)
 	if err != nil {
 		fmt.Printf("Could not create %s. Maybe this entry already exists?\n", title)
 	}
