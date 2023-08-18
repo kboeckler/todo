@@ -74,8 +74,8 @@ func (app *todoApp) find(searchFor string) *todo {
 	return matching
 }
 
-func (app *todoApp) add(title string) error {
-	todo := todo{Title: title, Id: uuid.New(), Due: time.Now().Add(24 * time.Hour), Notification: notification{Type: NotificationTypeOnce}}
+func (app *todoApp) add(title string, due time.Time) error {
+	todo := todo{Title: title, Id: uuid.New(), Due: due, Notification: notification{Type: NotificationTypeOnce}}
 	return app.repo.insertEntry(todo, todo.Title+".yml")
 }
 
