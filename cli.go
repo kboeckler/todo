@@ -18,43 +18,30 @@ func (cli *cli) run(args []string) {
 	if len(args) > 0 {
 		command = &args[0]
 		arguments = args[1:]
+	} else {
+		command = new(string)
 	}
-	if command == nil {
+	switch *command {
+	case "help":
+		flag.Usage()
+	case "add":
+		cli.add(arguments)
+	case "list":
+		cli.list()
+	case "due":
+		cli.due()
+	case "show":
+		cli.show(arguments)
+	case "del":
+		cli.del(arguments)
+	case "resolve":
+		cli.resolve(arguments)
+	case "snooze":
+		cli.snooze(arguments)
+	default:
 		// default case print usage
 		flag.Usage()
 		os.Exit(-1)
-	}
-	if *command == "help" {
-		flag.Usage()
-		os.Exit(0)
-	}
-	if *command == "add" {
-		cli.add(arguments)
-		os.Exit(0)
-	}
-	if *command == "list" {
-		cli.list()
-		os.Exit(0)
-	}
-	if *command == "due" {
-		cli.due()
-		os.Exit(0)
-	}
-	if *command == "show" {
-		cli.show(arguments)
-		os.Exit(0)
-	}
-	if *command == "del" {
-		cli.del(arguments)
-		os.Exit(0)
-	}
-	if *command == "resolve" {
-		cli.resolve(arguments)
-		os.Exit(0)
-	}
-	if *command == "snooze" {
-		cli.snooze(arguments)
-		os.Exit(0)
 	}
 }
 
