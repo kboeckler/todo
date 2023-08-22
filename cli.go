@@ -88,29 +88,24 @@ func (cli *cli) due() {
 
 func (cli *cli) show(arguments []string) {
 	searchFor := ""
-	findAny := false
-	if len(arguments) == 0 {
-		findAny = true
-	} else {
-		buffer := &bytes.Buffer{}
-		for i, argument := range arguments {
-			buffer.WriteString(argument)
-			if i < len(arguments)-1 {
-				buffer.WriteRune(' ')
-			}
+	buffer := &bytes.Buffer{}
+	for i, argument := range arguments {
+		buffer.WriteString(argument)
+		if i < len(arguments)-1 {
+			buffer.WriteRune(' ')
 		}
-		searchFor = buffer.String()
 	}
+	searchFor = buffer.String()
 
 	var entry *todo
 
-	if findAny {
+	if len(searchFor) > 0 {
+		entry = cli.app.find(searchFor)
+	} else {
 		entries := cli.app.findAll()
 		if len(entries) > 0 {
 			entry = &entries[0]
 		}
-	} else {
-		entry = cli.app.find(searchFor)
 	}
 
 	if entry == nil {
@@ -172,7 +167,6 @@ func (cli *cli) resolve(arguments []string) {
 }
 
 func (cli *cli) snooze(arguments []string) {
-	searchFor := ""
 	snoozeFor := 1 * time.Hour
 	lastTitleArgumentIndex := len(arguments) - 1
 	if len(arguments) >= 2 {
@@ -182,6 +176,7 @@ func (cli *cli) snooze(arguments []string) {
 			lastTitleArgumentIndex--
 		}
 	}
+	searchFor := ""
 	buffer := &bytes.Buffer{}
 	for i := 0; i <= lastTitleArgumentIndex; i++ {
 		argument := arguments[i]
