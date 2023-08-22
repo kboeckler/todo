@@ -2,10 +2,8 @@ package main
 
 import (
 	"bytes"
-	"errors"
 	"flag"
 	"fmt"
-	"log"
 	"os"
 	"time"
 )
@@ -43,32 +41,19 @@ func (cli *cli) run(args []string) {
 		os.Exit(0)
 	}
 	if *command == "show" {
-		err := cli.show(arguments)
-		if err != nil {
-			log.Fatalf("Cannot show. Reason: %s\n", err)
-		} else {
-			os.Exit(0)
-		}
+		cli.show(arguments)
+		os.Exit(0)
 	}
 	if *command == "del" {
-		err := cli.del(arguments)
-		if err != nil {
-			log.Fatalf("Cannot delete. Reason: %s\n", err)
-		}
+		cli.del(arguments)
 		os.Exit(0)
 	}
 	if *command == "resolve" {
-		err := cli.resolve(arguments)
-		if err != nil {
-			log.Fatalf("Cannot resolve. Reason: %s\n", err)
-		}
+		cli.resolve(arguments)
 		os.Exit(0)
 	}
 	if *command == "snooze" {
-		err := cli.snooze(arguments)
-		if err != nil {
-			log.Fatalf("Cannot snooze. Reason: %s\n", err)
-		}
+		cli.snooze(arguments)
 		os.Exit(0)
 	}
 }
@@ -114,16 +99,20 @@ func (cli *cli) due() {
 	}
 }
 
-func (cli *cli) show(arguments []string) error {
+func (cli *cli) show(arguments []string) {
 	searchFor := ""
 	findAny := false
 	if len(arguments) == 0 {
 		findAny = true
 	} else {
-		searchFor = arguments[0]
-	}
-	if len(arguments) > 1 {
-		return errors.New("invalid parameter for show")
+		buffer := &bytes.Buffer{}
+		for i, argument := range arguments {
+			buffer.WriteString(argument)
+			if i < len(arguments)-1 {
+				buffer.WriteRune(' ')
+			}
+		}
+		searchFor = buffer.String()
 	}
 
 	var entry *todo
@@ -142,78 +131,90 @@ func (cli *cli) show(arguments []string) error {
 	} else {
 		fmt.Printf("%s Title: %s, Details: %s, Due: %s, Notification: %v\n", entry.Id, entry.Title, entry.Details, entry.Due, entry.Notification)
 	}
-	return nil
 }
 
-func (cli *cli) del(arguments []string) error {
-	var searchFor string
-	if len(arguments) == 0 {
-		return errors.New("invalid parameter for del")
-	} else {
-		searchFor = arguments[0]
-	}
-	if len(arguments) > 1 {
-		return errors.New("invalid parameter for del")
-	}
-
-	entry := cli.app.find(searchFor)
-
-	if entry == nil {
-		fmt.Printf("No entry found matching %s\n", searchFor)
-		return nil
-	}
-
-	return cli.app.delete(entry.Id)
-}
-
-func (cli *cli) resolve(arguments []string) error {
-	var searchFor string
-	if len(arguments) == 0 {
-		return errors.New("invalid parameter for resolve")
-	} else {
-		searchFor = arguments[0]
-	}
-	if len(arguments) > 1 {
-		return errors.New("invalid parameter for resolve")
-	}
-
-	entry := cli.app.find(searchFor)
-
-	if entry == nil {
-		fmt.Printf("No entry found matching %s\n", searchFor)
-		return nil
-	}
-
-	cli.app.resolve(entry.Id)
-	return nil
-}
-
-func (cli *cli) snooze(arguments []string) error {
-	var searchFor string
-	snoozeFor := 1 * time.Hour
-	if len(arguments) == 0 {
-		return errors.New("invalid parameter for snooze")
-	} else {
-		searchFor = arguments[0]
-	}
-	if len(arguments) >= 2 {
-		var err error
-		snoozeFor, err = time.ParseDuration(arguments[1])
-		if err != nil {
-			return errors.New(fmt.Sprintf("invalid parameter for snooze: %s", err))
+func (cli *cli) del(arguments []string) {
+	searchFor := ""
+	buffer := &bytes.Buffer{}
+	for i, argument := range arguments {
+		buffer.WriteString(argument)
+		if i < len(arguments)-1 {
+			buffer.WriteRune(' ')
 		}
 	}
-	if len(arguments) > 2 {
-		return errors.New("invalid parameter for snooze")
-	}
+	searchFor = buffer.String()
 
-	entry := cli.app.find(searchFor)
+	var entry *todo
+
+	if len(searchFor) > 0 {
+		entry = cli.app.find(searchFor)
+	}
 
 	if entry == nil {
 		fmt.Printf("No entry found matching %s\n", searchFor)
-		return nil
+	} else {
+		cli.app.delete(entry.Id)
+		fmt.Printf("Deleted %s %s\n", entry.Id, entry.Title)
 	}
 
-	cli.app.setNewDue(entry.Id, time.Now().Add(snoozeFor))
-	return nil
+}
+
+func (cli *cli) resolve(arguments []string) {
+	searchFor := ""
+	buffer := &bytes.Buffer{}
+	for i, argument := range arguments {
+		buffer.WriteString(argument)
+		if i < len(arguments)-1 {
+			buffer.WriteRune(' ')
+		}
+	}
+	searchFor = buffer.String()
+
+	var entry *todo
+
+	if len(searchFor) > 0 {
+		entry = cli.app.find(searchFor)
+	}
+
+	if entry == nil {
+		fmt.Printf("No entry found matching %s\n", searchFor)
+	} else {
+		cli.app.resolve(entry.Id)
+		fmt.Printf("Resolved %s %s\n", entry.Id, entry.Title)
+	}
+}
+
+func (cli *cli) snooze(arguments []string) {
+	searchFor := ""
+	snoozeFor := 1 * time.Hour
+	lastTitleArgumentIndex := len(arguments) - 1
+	if len(arguments) >= 2 {
+		parsedDueIn, err := time.ParseDuration(arguments[len(arguments)-1])
+		if err == nil {
+			snoozeFor = parsedDueIn
+			lastTitleArgumentIndex--
+		}
+	}
+	buffer := &bytes.Buffer{}
+	for i := 0; i <= lastTitleArgumentIndex; i++ {
+		argument := arguments[i]
+		buffer.WriteString(argument)
+		if i < len(arguments)-1 {
+			buffer.WriteRune(' ')
+		}
+	}
+	searchFor = buffer.String()
+
+	var entry *todo
+
+	if len(searchFor) > 0 {
+		entry = cli.app.find(searchFor)
+	}
+
+	if entry == nil {
+		fmt.Printf("No entry found matching %s\n", searchFor)
+	} else {
+		cli.app.setNewDue(entry.Id, time.Now().Add(snoozeFor))
+		fmt.Printf("Snoozed %s %s\n", entry.Id, entry.Title)
+	}
 }

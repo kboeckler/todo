@@ -79,13 +79,12 @@ func (app *todoApp) add(title string, due time.Time) error {
 	return app.repo.insertEntry(todo, todo.Title+".yml")
 }
 
-func (app *todoApp) delete(todoId uuid.UUID) error {
+func (app *todoApp) delete(todoId uuid.UUID) {
 	todo, err := app.repo.readEntryById(todoId)
 	if err != nil {
-		return err
+		log.Printf("Could not delete todo: %s", err)
 	}
 	app.repo.deleteEntry(todo)
-	return nil
 }
 
 func (app *todoApp) markNotified(todoId uuid.UUID) {
