@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"flag"
 	"fmt"
 	"os"
 	"time"
@@ -23,7 +22,7 @@ func (cli *cli) run(args []string) {
 	}
 	switch *command {
 	case "help":
-		flag.Usage()
+		usage()
 	case "add":
 		cli.add(arguments)
 	case "list":
@@ -39,8 +38,8 @@ func (cli *cli) run(args []string) {
 	case "snooze":
 		cli.snooze(arguments)
 	default:
-		// default case print usage
-		flag.Usage()
+		_, _ = fmt.Fprintf(os.Stderr, "command unknown: %s\n", *command)
+		usage()
 		os.Exit(-1)
 	}
 }

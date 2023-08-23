@@ -14,8 +14,9 @@ import (
 
 func main() {
 	debug := flag.Bool("debug", false, "enable debugging messages")
-	runAsServer := flag.Bool("server", false, "run server instance")
+	runAsServer := flag.Bool("server", false, "run server instance - additional cli commands will be ignored")
 	runInTray := flag.Bool("tray", false, "run in tray - does not do anything when not run as server")
+	flag.Usage = usage
 
 	flag.Parse()
 
@@ -79,6 +80,31 @@ func loadConfig() config {
 		config.TrayIcon = "todo.png"
 	}
 	return config
+}
+
+func usage() {
+	out := os.Stdout
+	_, _ = fmt.Fprintf(out, "Usage: \t%s [-flag] command <argument>\n", os.Args[0])
+	_, _ = fmt.Fprintf(out, "\nFlags:\n")
+	flag.CommandLine.SetOutput(out)
+	flag.PrintDefaults()
+	_, _ = fmt.Fprintf(out, "\nCommands:\n")
+	_, _ = fmt.Fprintf(out, "  help\n")
+	_, _ = fmt.Fprintf(out, "\tprints this help\n")
+	_, _ = fmt.Fprintf(out, "  add\n")
+	_, _ = fmt.Fprintf(out, "\tadds a new todo\n")
+	_, _ = fmt.Fprintf(out, "  list\n")
+	_, _ = fmt.Fprintf(out, "\tlists all active todos\n")
+	_, _ = fmt.Fprintf(out, "  due\n")
+	_, _ = fmt.Fprintf(out, "\tlists all due todos\n")
+	_, _ = fmt.Fprintf(out, "  show\n")
+	_, _ = fmt.Fprintf(out, "\tprints one todo in detail view\n")
+	_, _ = fmt.Fprintf(out, "  del\n")
+	_, _ = fmt.Fprintf(out, "\tdeletes an active todo\n")
+	_, _ = fmt.Fprintf(out, "  resolve\n")
+	_, _ = fmt.Fprintf(out, "\treolves an active todo\n")
+	_, _ = fmt.Fprintf(out, "  snooze\n")
+	_, _ = fmt.Fprintf(out, "\tsets a new due date for an active todo\n")
 }
 
 type todo struct {
