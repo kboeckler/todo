@@ -134,8 +134,12 @@ func (cli *cli) del(arguments []string) {
 	if entry == nil {
 		fmt.Printf("No entry found matching %s\n", searchFor)
 	} else {
-		cli.app.delete(entry.Id)
-		fmt.Printf("Deleted %s %s\n", entry.Id, entry.Title)
+		err := cli.app.delete(entry.Id)
+		if err != nil {
+			fmt.Printf("Could not delete %s %s: %s", entry.Id, entry.Title, err)
+		} else {
+			fmt.Printf("Deleted %s %s\n", entry.Id, entry.Title)
+		}
 	}
 
 }
@@ -160,8 +164,12 @@ func (cli *cli) resolve(arguments []string) {
 	if entry == nil {
 		fmt.Printf("No entry found matching %s\n", searchFor)
 	} else {
-		cli.app.resolve(entry.Id)
-		fmt.Printf("Resolved %s %s\n", entry.Id, entry.Title)
+		err := cli.app.resolve(entry.Id)
+		if err != nil {
+			fmt.Printf("Could not resolve %s %s: %s", entry.Id, entry.Title, err)
+		} else {
+			fmt.Printf("Resolved %s %s\n", entry.Id, entry.Title)
+		}
 	}
 }
 
@@ -195,7 +203,11 @@ func (cli *cli) snooze(arguments []string) {
 	if entry == nil {
 		fmt.Printf("No entry found matching %s\n", searchFor)
 	} else {
-		cli.app.setNewDue(entry.Id, time.Now().Add(snoozeFor))
-		fmt.Printf("Snoozed %s %s\n", entry.Id, entry.Title)
+		err := cli.app.setNewDue(entry.Id, time.Now().Add(snoozeFor))
+		if err != nil {
+			fmt.Printf("Could not snooze %s %s: %s", entry.Id, entry.Title, err)
+		} else {
+			fmt.Printf("Snoozed %s %s\n", entry.Id, entry.Title)
+		}
 	}
 }

@@ -2,7 +2,6 @@ package main
 
 import (
 	"github.com/google/uuid"
-	"log"
 	"strings"
 	"time"
 )
@@ -79,39 +78,43 @@ func (app *todoApp) add(title string, due time.Time) error {
 	return app.repo.insertEntry(todo, todo.Title+".yml")
 }
 
-func (app *todoApp) delete(todoId uuid.UUID) {
+func (app *todoApp) delete(todoId uuid.UUID) error {
 	todo, err := app.repo.readEntryById(todoId)
 	if err != nil {
-		log.Printf("Could not delete todo: %s", err)
+		return err
 	}
 	app.repo.deleteEntry(todo)
+	return nil
 }
 
-func (app *todoApp) markNotified(todoId uuid.UUID) {
+func (app *todoApp) markNotified(todoId uuid.UUID) error {
 	todo, err := app.repo.readEntryById(todoId)
 	if err != nil {
-		log.Printf("Could not mark todo as notified: %s", err)
+		return err
 	}
 	todo.Notification.NotifiedAt = time.Now()
 	app.repo.updateEntry(todo)
+	return nil
 }
 
-func (app *todoApp) setNewDue(todoId uuid.UUID, due time.Time) {
+func (app *todoApp) setNewDue(todoId uuid.UUID, due time.Time) error {
 	todo, err := app.repo.readEntryById(todoId)
 	if err != nil {
-		log.Printf("Could not set a new due date: %s", err)
+		return err
 	}
 	todo.Due = due
 	todo.Notification.NotifiedAt = time.Time{}
 	app.repo.updateEntry(todo)
+	return nil
 }
 
-func (app *todoApp) resolve(todoId uuid.UUID) {
+func (app *todoApp) resolve(todoId uuid.UUID) error {
 	todo, err := app.repo.readEntryById(todoId)
 	if err != nil {
-		log.Printf("Could not resolve todo: %s", err)
+		return err
 	}
 	todo.ResolvedAt = time.Now()
 	app.repo.updateEntry(todo)
 	app.repo.archiveEntry(todo)
+	return nil
 }

@@ -78,7 +78,10 @@ func (server *server) handleNotifications() error {
 			stdout, err := cmd.Output()
 			if err == nil {
 				log.Printf("Result of executing notification command: %s", stdout)
-				server.app.markNotified(todo.Id)
+				err := server.app.markNotified(todo.Id)
+				if err != nil {
+					log.Printf("Could not mark as notified: %s %s: %s", todo.Id, todo.Title, err)
+				}
 			}
 			if err != nil {
 				exitErr, ok := err.(*exec.ExitError)
