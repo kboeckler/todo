@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/magiconair/properties"
-	"log"
 	"os"
 	"strings"
 	"time"
@@ -52,7 +51,7 @@ type config struct {
 func loadConfig() config {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		log.Fatal("Error getting home directory: ", err)
+		exitWithError("Error getting home directory: ", err)
 	}
 	todoDir, specified := os.LookupEnv("TODO_USER_HOME")
 	if !specified {
@@ -61,12 +60,12 @@ func loadConfig() config {
 	config := config{}
 	prop, err := properties.LoadFile(todoDir+"/todo.properties", properties.UTF8)
 	if err != nil {
-		log.Printf("No config loaded due to error: %s, using Defaults\n", err)
+		_, _ = fmt.Fprintf(os.Stderr, "No config loaded due to error: %s, using Defaults\n", err)
 		todoDir = homeDir + "/.todo"
 	} else {
 		err = prop.Decode(&config)
 		if err != nil {
-			log.Printf("No config loaded due to error: %s, using Defaults\n", err)
+			_, _ = fmt.Fprintf(os.Stderr, "No config loaded due to error: %s, using Defaults\n", err)
 			todoDir = homeDir + "/.todo"
 		}
 	}
@@ -105,6 +104,11 @@ func usage() {
 	_, _ = fmt.Fprintf(out, "\treolves an active todo\n")
 	_, _ = fmt.Fprintf(out, "  snooze\n")
 	_, _ = fmt.Fprintf(out, "\tsets a new due date for an active todo\n")
+}
+
+func exitWithError(v ...any) {
+	_, _ = fmt.Fprint(os.Stderr, v...)
+	os.Exit(1)
 }
 
 type todo struct {
