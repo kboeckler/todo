@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"fyne.io/systray"
 	log "github.com/sirupsen/logrus"
 	"os"
@@ -74,22 +75,31 @@ func (server *server) handleNotifications() error {
 	if len(server.app.config.NotificationCmd) > 0 {
 		todos := server.app.findWhereDueBeforeAndByNotificationTypeAndNotifiedAtEmpty(time.Now(), NotificationTypeOnce)
 		for _, todo := range todos {
-			cmd := exec.Command(server.app.config.NotificationCmd, "test", todo.Title)
+			cmd := exec.Command(server.app.config.NotificationCmd, todo.Title, server.renderNotificationText(todo))
 			log.Debugf("Calling notification command: %s", cmd)
 			stdout, err := cmd.Output()
 			if err == nil {
-				log.Infof("Result of executing notification command: %s", stdout)
+				log.Debugf("Result of executing notification command: %s", stdout)
 				err := server.app.markNotified(todo.Id)
 				if err != nil {
 					log.Errorf("Could not mark as notified: %s %s: %s", todo.Id, todo.Title, err)
 				}
 			}
 			if err != nil {
-				log.Errorf("Error executing notification command. Reason: %s:", err)
+				exitErr, ok := err.(*exec.ExitError)
+				debugError := "{}"
+				if ok {
+					debugError = string(exitErr.Stderr)
+				}
+				log.Errorf("Error executing notification command: %s: Stdout: %s. DebugErr: %s.", err, stdout, debugError)
 			}
 		}
 	}
 	return nil
+}
+
+func (server *server) renderNotificationText(todo todo) string {
+	return fmt.Sprintf("%s\n%s\n%s", todo.Title, todo.Due, todo.Details)
 }
 
 func (server *server) runSysTray() {
