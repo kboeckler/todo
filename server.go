@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"fyne.io/systray"
-	"log"
+	log "github.com/sirupsen/logrus"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -75,21 +75,17 @@ func (server *server) handleNotifications() error {
 		todos := server.app.findWhereDueBeforeAndByNotificationTypeAndNotifiedAtEmpty(time.Now(), NotificationTypeOnce)
 		for _, todo := range todos {
 			cmd := exec.Command(server.app.config.NotificationCmd, "test", todo.Title)
+			log.Debugf("Calling notification command: %s", cmd)
 			stdout, err := cmd.Output()
 			if err == nil {
-				log.Printf("Result of executing notification command: %s", stdout)
+				log.Infof("Result of executing notification command: %s", stdout)
 				err := server.app.markNotified(todo.Id)
 				if err != nil {
-					log.Printf("Could not mark as notified: %s %s: %s", todo.Id, todo.Title, err)
+					log.Errorf("Could not mark as notified: %s %s: %s", todo.Id, todo.Title, err)
 				}
 			}
 			if err != nil {
-				exitErr, ok := err.(*exec.ExitError)
-				debugError := "{}"
-				if ok {
-					debugError = string(exitErr.Stderr)
-				}
-				log.Printf("Error executing notification command: %s: %s\n.", err, debugError)
+				log.Errorf("Error executing notification command. Reason: %s:", err)
 			}
 		}
 	}
@@ -103,7 +99,7 @@ func (server *server) runSysTray() {
 func (server *server) onReady() {
 	file, err := os.ReadFile(server.app.config.TrayIcon)
 	if err != nil {
-		log.Printf("Error reading icon from file %s: %s\n", server.app.config.TrayIcon, err)
+		log.Errorf("Error reading icon from file %s: %s\n", server.app.config.TrayIcon, err)
 	}
 	systray.SetIcon(file)
 	systray.SetTitle("Todo App")

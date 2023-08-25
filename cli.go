@@ -3,15 +3,32 @@ package main
 import (
 	"bytes"
 	"fmt"
+	log "github.com/sirupsen/logrus"
+	"io"
 	"os"
 	"time"
 )
 
+type output struct {
+	stdout io.Writer
+	stderr io.Writer
+}
+
+func (o *output) Resultf(format string, a ...any) {
+	_, _ = fmt.Fprintf(o.stdout, format, a...)
+}
+
+func (o *output) Errorf(format string, a ...any) {
+	_, _ = fmt.Fprintf(o.stderr, format, a...)
+}
+
 type cli struct {
 	app *todoApp
+	output
 }
 
 func (cli *cli) run(args []string) {
+	log.Debugf("Running cli with arguments %v", args)
 	var command *string
 	var arguments []string
 	if len(args) > 0 {
@@ -38,7 +55,7 @@ func (cli *cli) run(args []string) {
 	case "snooze":
 		cli.snooze(arguments)
 	default:
-		_, _ = fmt.Fprintf(os.Stderr, "command unknown: %s\n", *command)
+		cli.Errorf("command unknown: %s\n", *command)
 		usage()
 		os.Exit(-1)
 	}
@@ -65,7 +82,7 @@ func (cli *cli) add(arguments []string) {
 	title := buffer.String()
 	err := cli.app.add(title, due)
 	if err != nil {
-		fmt.Printf("Could not create %s. Maybe this entry already exists?\n", title)
+		cli.Errorf("Could not create %s. Maybe this entry already exists?\n", title)
 	}
 }
 
@@ -73,7 +90,7 @@ func (cli *cli) list() {
 	entries := cli.app.findAll()
 
 	for _, entry := range entries {
-		fmt.Printf("%s Title: %s, Details: %s, Due: %s, Notification: %v\n", entry.Id, entry.Title, entry.Details, entry.Due, entry.Notification)
+		cli.Resultf("%s Title: %s, Details: %s, Due: %s, Notification: %v\n", entry.Id, entry.Title, entry.Details, entry.Due, entry.Notification)
 	}
 }
 
@@ -81,7 +98,7 @@ func (cli *cli) due() {
 	entries := cli.app.findWhereDueBefore(time.Now())
 
 	for _, entry := range entries {
-		fmt.Printf("%s Title: %s, Details: %s, Due: %s, Notification: %v\n", entry.Id, entry.Title, entry.Details, entry.Due, entry.Notification)
+		cli.Resultf("%s Title: %s, Details: %s, Due: %s, Notification: %v\n", entry.Id, entry.Title, entry.Details, entry.Due, entry.Notification)
 	}
 }
 
@@ -108,9 +125,9 @@ func (cli *cli) show(arguments []string) {
 	}
 
 	if entry == nil {
-		fmt.Printf("No entry found matching %s\n", searchFor)
+		cli.Errorf("No entry found matching %s\n", searchFor)
 	} else {
-		fmt.Printf("%s Title: %s, Details: %s, Due: %s, Notification: %v\n", entry.Id, entry.Title, entry.Details, entry.Due, entry.Notification)
+		cli.Resultf("%s Title: %s, Details: %s, Due: %s, Notification: %v\n", entry.Id, entry.Title, entry.Details, entry.Due, entry.Notification)
 	}
 }
 
@@ -132,13 +149,13 @@ func (cli *cli) del(arguments []string) {
 	}
 
 	if entry == nil {
-		fmt.Printf("No entry found matching %s\n", searchFor)
+		cli.Errorf("No entry found matching %s\n", searchFor)
 	} else {
 		err := cli.app.delete(entry.Id)
 		if err != nil {
-			fmt.Printf("Could not delete %s %s: %s", entry.Id, entry.Title, err)
+			cli.Errorf("Could not delete %s %s: %s", entry.Id, entry.Title, err)
 		} else {
-			fmt.Printf("Deleted %s %s\n", entry.Id, entry.Title)
+			cli.Resultf("Deleted %s %s\n", entry.Id, entry.Title)
 		}
 	}
 
@@ -162,13 +179,13 @@ func (cli *cli) resolve(arguments []string) {
 	}
 
 	if entry == nil {
-		fmt.Printf("No entry found matching %s\n", searchFor)
+		cli.Errorf("No entry found matching %s\n", searchFor)
 	} else {
 		err := cli.app.resolve(entry.Id)
 		if err != nil {
-			fmt.Printf("Could not resolve %s %s: %s", entry.Id, entry.Title, err)
+			cli.Errorf("Could not resolve %s %s: %s", entry.Id, entry.Title, err)
 		} else {
-			fmt.Printf("Resolved %s %s\n", entry.Id, entry.Title)
+			cli.Resultf("Resolved %s %s\n", entry.Id, entry.Title)
 		}
 	}
 }
@@ -201,13 +218,13 @@ func (cli *cli) snooze(arguments []string) {
 	}
 
 	if entry == nil {
-		fmt.Printf("No entry found matching %s\n", searchFor)
+		cli.Errorf("No entry found matching %s\n", searchFor)
 	} else {
 		err := cli.app.setNewDue(entry.Id, time.Now().Add(snoozeFor))
 		if err != nil {
-			fmt.Printf("Could not snooze %s %s: %s", entry.Id, entry.Title, err)
+			cli.Errorf("Could not snooze %s %s: %s", entry.Id, entry.Title, err)
 		} else {
-			fmt.Printf("Snoozed %s %s\n", entry.Id, entry.Title)
+			cli.Resultf("Snoozed %s %s\n", entry.Id, entry.Title)
 		}
 	}
 }

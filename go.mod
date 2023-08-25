@@ -6,6 +6,7 @@ require (
 	fyne.io/systray v1.10.0
 	github.com/google/uuid v1.3.0
 	github.com/magiconair/properties v1.8.7
+	github.com/sirupsen/logrus v1.9.3
 	gopkg.in/yaml.v3 v3.0.1
 )
 

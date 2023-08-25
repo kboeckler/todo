@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/magiconair/properties"
+	log "github.com/sirupsen/logrus"
 	"os"
 	"strings"
 	"time"
@@ -15,13 +16,15 @@ func main() {
 	debug := flag.Bool("debug", false, "enable debugging messages")
 	runAsServer := flag.Bool("server", false, "run server instance - additional cli commands will be ignored")
 	runInTray := flag.Bool("tray", false, "run in tray - does not do anything when not run as server")
+	logFile := flag.String("logfile", "", "location of file to append log to - does not do anything when not run as server")
 	flag.Usage = usage
 
 	flag.Parse()
 
 	if *debug {
-		fmt.Printf("Running '%s' with parameters:\n", os.Args[0])
-		fmt.Printf("  debug:    %v\n", *debug)
+		log.SetLevel(log.DebugLevel)
+	} else {
+		log.SetLevel(log.InfoLevel)
 	}
 
 	app := &todoApp{repo: &repository{}}
@@ -29,16 +32,39 @@ func main() {
 	config := loadConfig()
 	app.reloadConfig(config)
 
+	var runner func()
+
 	if *runAsServer {
-		server := server{app: app}
-		if *runInTray {
-			server.runSysTray()
+		serverFormatter := new(log.JSONFormatter)
+		log.SetReportCaller(true)
+		log.SetFormatter(serverFormatter)
+		if len(*logFile) > 0 {
+			log.SetOutput(newFileWriter(*logFile))
 		}
-		server.run()
+
+		server := server{app: app}
+
+		runner = func() {
+			if *runInTray {
+				server.runSysTray()
+			}
+			server.run()
+		}
 	} else {
-		cli := cli{app}
-		cli.run(flag.Args())
+		cliFormatter := new(log.TextFormatter)
+		cliFormatter.DisableTimestamp = true
+		cliFormatter.DisableLevelTruncation = true
+		log.SetFormatter(cliFormatter)
+
+		cli := cli{app, output{os.Stdout, os.Stderr}}
+
+		runner = func() {
+			cli.run(flag.Args())
+		}
 	}
+
+	log.Debugf("Log level is %s", log.GetLevel())
+	runner()
 }
 
 type config struct {
