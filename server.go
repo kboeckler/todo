@@ -13,9 +13,10 @@ import (
 )
 
 type server struct {
-	app    *todoApp
-	ctx    context.Context
-	cancel context.CancelFunc
+	app              *todoApp
+	ctx              context.Context
+	cancel           context.CancelFunc
+	timeRenderLayout string
 }
 
 func (server *server) run() {
@@ -99,7 +100,7 @@ func (server *server) handleNotifications() error {
 }
 
 func (server *server) renderNotificationText(todo todo) string {
-	return fmt.Sprintf("%s\n%s\n%s", todo.Title, todo.Due, todo.Details)
+	return fmt.Sprintf("%s\n%s\n%s", todo.Title, todo.Due.Format(server.timeRenderLayout), todo.Details)
 }
 
 func (server *server) runSysTray() {

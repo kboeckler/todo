@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"github.com/fatih/color"
 	log "github.com/sirupsen/logrus"
 	"io"
 	"os"
@@ -25,6 +26,7 @@ func (o *output) Errorf(format string, a ...any) {
 type cli struct {
 	app *todoApp
 	output
+	timeRenderLayout string
 }
 
 func (cli *cli) run(args []string) {
@@ -90,7 +92,15 @@ func (cli *cli) list() {
 	entries := cli.app.findAll()
 
 	for _, entry := range entries {
-		cli.Resultf("%s Title: %s, Details: %s, Due: %s, Notification: %v\n", entry.Id, entry.Title, entry.Details, entry.Due, entry.Notification)
+		bold := color.New(color.Bold, color.FgHiBlack).SprintFunc()
+		blue := color.New(color.FgBlue).SprintFunc()
+		red := color.New(color.FgRed).SprintFunc()
+		green := color.New(color.FgGreen).SprintFunc()
+		dueFunc := green
+		if entry.Due.Before(time.Now()) {
+			dueFunc = red
+		}
+		cli.Resultf("%s %s %s\n", blue(entry.Id), bold(entry.Title), dueFunc(cli.format(entry.Due)))
 	}
 }
 
@@ -98,7 +108,9 @@ func (cli *cli) due() {
 	entries := cli.app.findWhereDueBefore(time.Now())
 
 	for _, entry := range entries {
-		cli.Resultf("%s Title: %s, Details: %s, Due: %s, Notification: %v\n", entry.Id, entry.Title, entry.Details, entry.Due, entry.Notification)
+		bold := color.New(color.Bold, color.FgHiBlack).SprintFunc()
+		blue := color.New(color.FgBlue).SprintFunc()
+		cli.Resultf("%s %s %s\n", blue(entry.Id), bold(entry.Title), cli.format(entry.Due))
 	}
 }
 
@@ -127,7 +139,15 @@ func (cli *cli) show(arguments []string) {
 	if entry == nil {
 		cli.Errorf("No entry found matching %s\n", searchFor)
 	} else {
-		cli.Resultf("%s Title: %s, Details: %s, Due: %s, Notification: %v\n", entry.Id, entry.Title, entry.Details, entry.Due, entry.Notification)
+		bold := color.New(color.Bold, color.FgHiBlack).SprintFunc()
+		blue := color.New(color.FgBlue).SprintFunc()
+		red := color.New(color.FgRed).SprintFunc()
+		green := color.New(color.FgGreen).SprintFunc()
+		dueFunc := green
+		if entry.Due.Before(time.Now()) {
+			dueFunc = red
+		}
+		cli.Resultf("%s\n%s\n%s\n%s\n", blue(entry.Id), bold(entry.Title), dueFunc(cli.format(entry.Due)), entry.Details)
 	}
 }
 
@@ -227,4 +247,8 @@ func (cli *cli) snooze(arguments []string) {
 			cli.Resultf("Snoozed %s %s\n", entry.Id, entry.Title)
 		}
 	}
+}
+
+func (cli *cli) format(timestamp time.Time) string {
+	return timestamp.Format(cli.timeRenderLayout)
 }

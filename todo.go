@@ -42,7 +42,7 @@ func main() {
 			log.SetOutput(newFileWriter(*logFile))
 		}
 
-		server := server{app: app}
+		server := server{app: app, timeRenderLayout: time.RFC1123}
 
 		runner = func() {
 			if *runInTray {
@@ -56,7 +56,7 @@ func main() {
 		cliFormatter.DisableLevelTruncation = true
 		log.SetFormatter(cliFormatter)
 
-		cli := cli{app, output{os.Stdout, os.Stderr}}
+		cli := cli{app, output{os.Stdout, os.Stderr}, time.RFC1123}
 
 		runner = func() {
 			cli.run(flag.Args())
