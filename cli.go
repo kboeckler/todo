@@ -89,7 +89,7 @@ func (cli *cli) add(arguments []string) {
 }
 
 func (cli *cli) list() {
-	entries := cli.app.findAll()
+	entries, _ := cli.app.findAll()
 
 	for _, entry := range entries {
 		bold := color.New(color.Bold, color.FgHiBlack).SprintFunc()
@@ -130,7 +130,7 @@ func (cli *cli) show(arguments []string) {
 	if len(searchFor) > 0 {
 		entry = cli.app.find(searchFor)
 	} else {
-		entries := cli.app.findAll()
+		entries, _ := cli.app.findAll()
 		if len(entries) > 0 {
 			entry = &entries[0]
 		}
