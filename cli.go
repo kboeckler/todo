@@ -89,7 +89,7 @@ func (cli *cli) add(arguments []string) {
 }
 
 func (cli *cli) list() {
-	entries, _ := cli.app.findAll()
+	entries, idMap := cli.app.findAll()
 
 	for _, entry := range entries {
 		bold := color.New(color.Bold, color.FgHiBlack).SprintFunc()
@@ -100,17 +100,17 @@ func (cli *cli) list() {
 		if entry.Due.Before(time.Now()) {
 			dueFunc = red
 		}
-		cli.Resultf("%s %s %s\n", blue(entry.Id), bold(entry.Title), dueFunc(cli.format(entry.Due)))
+		cli.Resultf("[%s] %s %s\n", blue(idMap[entry.Id.String()]), bold(entry.Title), dueFunc(cli.format(entry.Due)))
 	}
 }
 
 func (cli *cli) due() {
-	entries := cli.app.findWhereDueBefore(time.Now())
+	entries, idMap := cli.app.findWhereDueBefore(time.Now())
 
 	for _, entry := range entries {
 		bold := color.New(color.Bold, color.FgHiBlack).SprintFunc()
 		blue := color.New(color.FgBlue).SprintFunc()
-		cli.Resultf("%s %s %s\n", blue(entry.Id), bold(entry.Title), cli.format(entry.Due))
+		cli.Resultf("[%s] %s %s\n", blue(idMap[entry.Id.String()]), bold(entry.Title), cli.format(entry.Due))
 	}
 }
 
@@ -126,14 +126,10 @@ func (cli *cli) show(arguments []string) {
 	searchFor = buffer.String()
 
 	var entry *todo
+	var entryId string
 
 	if len(searchFor) > 0 {
-		entry = cli.app.find(searchFor)
-	} else {
-		entries, _ := cli.app.findAll()
-		if len(entries) > 0 {
-			entry = &entries[0]
-		}
+		entry, entryId = cli.app.find(searchFor)
 	}
 
 	if entry == nil {
@@ -147,7 +143,7 @@ func (cli *cli) show(arguments []string) {
 		if entry.Due.Before(time.Now()) {
 			dueFunc = red
 		}
-		cli.Resultf("%s\n%s\n%s\n%s\n", blue(entry.Id), bold(entry.Title), dueFunc(cli.format(entry.Due)), entry.Details)
+		cli.Resultf("[%s]\n%s\n%s\n%s\n", blue(entryId), bold(entry.Title), dueFunc(cli.format(entry.Due)), entry.Details)
 	}
 }
 
@@ -165,7 +161,7 @@ func (cli *cli) del(arguments []string) {
 	var entry *todo
 
 	if len(searchFor) > 0 {
-		entry = cli.app.find(searchFor)
+		entry, _ = cli.app.find(searchFor)
 	}
 
 	if entry == nil {
@@ -195,7 +191,7 @@ func (cli *cli) resolve(arguments []string) {
 	var entry *todo
 
 	if len(searchFor) > 0 {
-		entry = cli.app.find(searchFor)
+		entry, _ = cli.app.find(searchFor)
 	}
 
 	if entry == nil {
@@ -234,7 +230,7 @@ func (cli *cli) snooze(arguments []string) {
 	var entry *todo
 
 	if len(searchFor) > 0 {
-		entry = cli.app.find(searchFor)
+		entry, _ = cli.app.find(searchFor)
 	}
 
 	if entry == nil {

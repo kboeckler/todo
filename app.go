@@ -20,8 +20,8 @@ func (app *todoApp) findAll() ([]todo, ShortIdMap) {
 	return app.readAllEntriesAndBuildIdMapInternal()
 }
 
-func (app *todoApp) findWhereDueBefore(due time.Time) []todo {
-	todos, _ := app.readAllEntriesAndBuildIdMapInternal()
+func (app *todoApp) findWhereDueBefore(due time.Time) ([]todo, ShortIdMap) {
+	todos, idMap := app.readAllEntriesAndBuildIdMapInternal()
 
 	matching := make([]todo, 0)
 
@@ -31,7 +31,7 @@ func (app *todoApp) findWhereDueBefore(due time.Time) []todo {
 		}
 	}
 
-	return matching
+	return matching, idMap
 }
 
 func (app *todoApp) findWhereDueBeforeAndByNotificationTypeAndNotifiedAtEmpty(due time.Time, notType notificationType) []todo {
@@ -48,25 +48,26 @@ func (app *todoApp) findWhereDueBeforeAndByNotificationTypeAndNotifiedAtEmpty(du
 	return matching
 }
 
-func (app *todoApp) find(searchFor string) *todo {
-	todos, _ := app.readAllEntriesAndBuildIdMapInternal()
+func (app *todoApp) find(searchFor string) (*todo, string) {
+	todos, idMap := app.readAllEntriesAndBuildIdMapInternal()
 
 	var matching *todo
 
 	if matching == nil {
-		var firstMatch *todo
-		for _, entry := range todos {
-			if strings.Index(strings.ToUpper(entry.Id.String()), strings.ToUpper(searchFor)) == 0 {
-				if firstMatch != nil {
-					firstMatch = nil
-					break
-				} else {
-					firstMatch = &entry
-				}
+		var todoId string
+		for original, short := range idMap {
+			if strings.EqualFold(strings.ToUpper(short), strings.ToUpper(searchFor)) {
+				todoId = original
+				break
 			}
 		}
-		if firstMatch != nil {
-			matching = firstMatch
+		if len(todoId) > 0 {
+			for _, entry := range todos {
+				if strings.EqualFold(entry.Id.String(), todoId) {
+					matching = &entry
+					break
+				}
+			}
 		}
 	}
 
@@ -87,7 +88,12 @@ func (app *todoApp) find(searchFor string) *todo {
 		}
 	}
 
-	return matching
+	shortId := ""
+	if matching != nil {
+		shortId = idMap[matching.Id.String()]
+	}
+
+	return matching, shortId
 }
 
 func (app *todoApp) add(title string, due time.Time) error {
