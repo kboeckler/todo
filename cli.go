@@ -100,7 +100,7 @@ func (cli *cli) list() {
 		if entry.Due.Before(time.Now()) {
 			dueFunc = red
 		}
-		cli.Resultf("[%s] %s %s\n", blue(idMap[entry.Id.String()]), bold(entry.Title), dueFunc(cli.format(entry.Due)))
+		cli.Resultf("[%s] %s %s\n", blue(idMap[entry.Id.String()]), bold(entry.Title), dueFunc(cli.formatRelativeTo(entry.Due, time.Now())))
 	}
 }
 
@@ -110,7 +110,7 @@ func (cli *cli) due() {
 	for _, entry := range entries {
 		bold := color.New(color.Bold, color.FgHiBlack).SprintFunc()
 		blue := color.New(color.FgBlue).SprintFunc()
-		cli.Resultf("[%s] %s %s\n", blue(idMap[entry.Id.String()]), bold(entry.Title), cli.format(entry.Due))
+		cli.Resultf("[%s] %s %s\n", blue(idMap[entry.Id.String()]), bold(entry.Title), cli.formatRelativeTo(entry.Due, time.Now()))
 	}
 }
 
@@ -247,4 +247,20 @@ func (cli *cli) snooze(arguments []string) {
 
 func (cli *cli) format(timestamp time.Time) string {
 	return timestamp.Format(cli.timeRenderLayout)
+}
+
+func (cli *cli) formatRelativeTo(timestamp, relativeTimestamp time.Time) string {
+	dueIn := timestamp.Sub(relativeTimestamp)
+	if dueIn >= 0 {
+		if dueIn <= 12*time.Hour {
+			return "in " + dueIn.String()
+		} else {
+			if relativeTimestamp.Year() == timestamp.Year() && relativeTimestamp.Month() == timestamp.Month() && relativeTimestamp.Day() == timestamp.Day()-1 {
+				return "tomorrow at " + timestamp.Format("15:04")
+			}
+		}
+	} else {
+
+	}
+	return cli.format(timestamp)
 }
