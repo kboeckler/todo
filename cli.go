@@ -92,7 +92,7 @@ func (cli *cli) list() {
 	entries, idMap := cli.app.findAll()
 
 	for _, entry := range entries {
-		bold := color.New(color.Bold, color.FgHiBlack).SprintFunc()
+		emph := color.New(color.FgHiBlack).SprintFunc()
 		blue := color.New(color.FgBlue).SprintFunc()
 		red := color.New(color.FgRed).SprintFunc()
 		green := color.New(color.FgGreen).SprintFunc()
@@ -100,7 +100,7 @@ func (cli *cli) list() {
 		if entry.Due.Before(time.Now()) {
 			dueFunc = red
 		}
-		cli.Resultf("[%s] %s %s\n", blue(idMap[entry.Id.String()]), bold(entry.Title), dueFunc(cli.formatRelativeTo(entry.Due, time.Now())))
+		cli.Resultf("[%s] %s %s\n", blue(idMap[entry.Id.String()]), emph(entry.Title), dueFunc(cli.formatRelativeTo(entry.Due, time.Now())))
 	}
 }
 
@@ -108,9 +108,9 @@ func (cli *cli) due() {
 	entries, idMap := cli.app.findWhereDueBefore(time.Now())
 
 	for _, entry := range entries {
-		bold := color.New(color.Bold, color.FgHiBlack).SprintFunc()
+		emph := color.New(color.FgHiBlack).SprintFunc()
 		blue := color.New(color.FgBlue).SprintFunc()
-		cli.Resultf("[%s] %s %s\n", blue(idMap[entry.Id.String()]), bold(entry.Title), cli.formatRelativeTo(entry.Due, time.Now()))
+		cli.Resultf("[%s] %s %s\n", blue(idMap[entry.Id.String()]), emph(entry.Title), cli.formatRelativeTo(entry.Due, time.Now()))
 	}
 }
 
@@ -135,7 +135,7 @@ func (cli *cli) show(arguments []string) {
 	if entry == nil {
 		cli.Errorf("No entry found matching %s\n", searchFor)
 	} else {
-		bold := color.New(color.Bold, color.FgHiBlack).SprintFunc()
+		emph := color.New(color.FgHiBlack).SprintFunc()
 		blue := color.New(color.FgBlue).SprintFunc()
 		red := color.New(color.FgRed).SprintFunc()
 		green := color.New(color.FgGreen).SprintFunc()
@@ -143,7 +143,7 @@ func (cli *cli) show(arguments []string) {
 		if entry.Due.Before(time.Now()) {
 			dueFunc = red
 		}
-		cli.Resultf("[%s]\n%s\n%s\n%s\n", blue(entryId), bold(entry.Title), dueFunc(cli.format(entry.Due)), entry.Details)
+		cli.Resultf("[%s]\n%s\n%s\n%s\n", blue(entryId), emph(entry.Title), dueFunc(cli.format(entry.Due)), entry.Details)
 	}
 }
 
@@ -255,12 +255,36 @@ func (cli *cli) formatRelativeTo(timestamp, relativeTimestamp time.Time) string 
 		if dueIn <= 12*time.Hour {
 			return "in " + dueIn.String()
 		} else {
-			if relativeTimestamp.Year() == timestamp.Year() && relativeTimestamp.Month() == timestamp.Month() && relativeTimestamp.Day() == timestamp.Day()-1 {
-				return "tomorrow at " + timestamp.Format("15:04")
+			relativeTomorrow := relativeTimestamp.Add(24 * time.Hour)
+			if relativeTomorrow.Year() == timestamp.Year() && relativeTomorrow.Month() == timestamp.Month() && relativeTomorrow.Day() == timestamp.Day() {
+				return timestamp.Format("tomorrow at 15:04")
 			}
+			relative2d := relativeTimestamp.Add(48 * time.Hour)
+			if relative2d.Year() == timestamp.Year() && relative2d.Month() == timestamp.Month() && relative2d.Day() == timestamp.Day() {
+				return "in 2 days"
+			}
+			relative3d := relativeTimestamp.Add(72 * time.Hour)
+			if relative3d.Year() == timestamp.Year() && relative3d.Month() == timestamp.Month() && relative3d.Day() == timestamp.Day() {
+				return "in 3 days"
+			}
+			return timestamp.Format("at Mon, 02 Jan 2006")
 		}
 	} else {
-
+		if dueIn >= -12*time.Hour {
+			return "for " + dueIn.Abs().String()
+		}
+		relativeYesterday := relativeTimestamp.Add(-24 * time.Hour)
+		if relativeYesterday.Year() == timestamp.Year() && relativeYesterday.Month() == timestamp.Month() && relativeYesterday.Day() == timestamp.Day() {
+			return "since yesterday"
+		}
+		relative2d := relativeTimestamp.Add(-48 * time.Hour)
+		if relative2d.Year() == timestamp.Year() && relative2d.Month() == timestamp.Month() && relative2d.Day() == timestamp.Day() {
+			return "for 2 days"
+		}
+		relative3d := relativeTimestamp.Add(-72 * time.Hour)
+		if relative3d.Year() == timestamp.Year() && relative3d.Month() == timestamp.Month() && relative3d.Day() == timestamp.Day() {
+			return "for 3 days"
+		}
+		return timestamp.Format("since Mon, 02 Jan 2006")
 	}
-	return cli.format(timestamp)
 }

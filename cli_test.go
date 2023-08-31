@@ -6,18 +6,11 @@ import (
 	"time"
 )
 
-func TestFormatRelativeTo_past(t *testing.T) {
-	eventTime := "2023-08-21T12:00:00Z"
-	relativeTime := "2099-01-02T15:04:05Z"
-	format := formatRelativeTo(eventTime, relativeTime)
-	assertEquals(t, eventTime, format)
-}
-
 func TestFormatRelativeTo_future(t *testing.T) {
-	eventTime := "2023-08-21T12:00:00Z"
-	relativeTime := "2023-08-18T12:00:00Z"
+	eventTime := "2023-08-23T12:00:00Z"
+	relativeTime := "2023-08-19T12:00:00Z"
 	format := formatRelativeTo(eventTime, relativeTime)
-	assertEquals(t, eventTime, format)
+	assertEquals(t, "at Wed, 23 Aug 2023", format)
 }
 
 func TestFormatRelativeTo_inOneHour(t *testing.T) {
@@ -53,6 +46,76 @@ func TestFormatRelativeTo_inMoreThanTwelveHours_tomorrowPm(t *testing.T) {
 	relativeTime := "2023-08-20T20:00:00Z"
 	format := formatRelativeTo(eventTime, relativeTime)
 	assertEquals(t, "tomorrow at 16:00", format)
+}
+
+func TestFormatRelativeTo_inMoreThanTwelveHours_tomorrowNextMonth(t *testing.T) {
+	eventTime := "2023-09-01T08:00:00Z"
+	relativeTime := "2023-08-31T18:00:00Z"
+	format := formatRelativeTo(eventTime, relativeTime)
+	assertEquals(t, "tomorrow at 08:00", format)
+}
+
+func TestFormatRelativeTo_inLessThanTwoDays(t *testing.T) {
+	eventTime := "2023-08-22T10:00:00Z"
+	relativeTime := "2023-08-20T12:00:00Z"
+	format := formatRelativeTo(eventTime, relativeTime)
+	assertEquals(t, "in 2 days", format)
+}
+
+func TestFormatRelativeTo_inMoreThanTwoDays(t *testing.T) {
+	eventTime := "2023-08-22T10:00:00Z"
+	relativeTime := "2023-08-20T08:00:00Z"
+	format := formatRelativeTo(eventTime, relativeTime)
+	assertEquals(t, "in 2 days", format)
+}
+
+func TestFormatRelativeTo_inThreeDays(t *testing.T) {
+	eventTime := "2023-08-23T10:00:00Z"
+	relativeTime := "2023-08-20T12:00:00Z"
+	format := formatRelativeTo(eventTime, relativeTime)
+	assertEquals(t, "in 3 days", format)
+}
+
+func TestFormatRelativeTo_past(t *testing.T) {
+	eventTime := "2023-08-23T12:00:00Z"
+	relativeTime := "2023-08-27T12:00:00Z"
+	format := formatRelativeTo(eventTime, relativeTime)
+	assertEquals(t, "since Wed, 23 Aug 2023", format)
+}
+
+func TestFormatRelativeTo_forOneHour(t *testing.T) {
+	eventTime := "2023-08-21T12:00:00Z"
+	relativeTime := "2023-08-21T13:00:00Z"
+	format := formatRelativeTo(eventTime, relativeTime)
+	assertEquals(t, "for 1h0m0s", format)
+}
+
+func TestFormatRelativeTo_forTwelveHours(t *testing.T) {
+	eventTime := "2023-08-21T12:00:00Z"
+	relativeTime := "2023-08-22T00:00:00Z"
+	format := formatRelativeTo(eventTime, relativeTime)
+	assertEquals(t, "for 12h0m0s", format)
+}
+
+func TestFormatRelativeTo_sinceYesterday(t *testing.T) {
+	eventTime := "2023-08-21T12:00:00Z"
+	relativeTime := "2023-08-22T12:00:00Z"
+	format := formatRelativeTo(eventTime, relativeTime)
+	assertEquals(t, "since yesterday", format)
+}
+
+func TestFormatRelativeTo_sinceTwoDays(t *testing.T) {
+	eventTime := "2023-08-21T12:00:00Z"
+	relativeTime := "2023-08-23T12:00:00Z"
+	format := formatRelativeTo(eventTime, relativeTime)
+	assertEquals(t, "for 2 days", format)
+}
+
+func TestFormatRelativeTo_sinceThreeDays(t *testing.T) {
+	eventTime := "2023-08-21T12:00:00Z"
+	relativeTime := "2023-08-24T12:00:00Z"
+	format := formatRelativeTo(eventTime, relativeTime)
+	assertEquals(t, "for 3 days", format)
 }
 
 func formatRelativeTo(eventTimeString string, relativeTimeString string) string {
