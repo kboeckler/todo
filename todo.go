@@ -8,6 +8,7 @@ import (
 	"github.com/magiconair/properties"
 	log "github.com/sirupsen/logrus"
 	"os"
+	"sort"
 	"strings"
 	"time"
 )
@@ -156,6 +157,34 @@ func (t *todo) validate() error {
 		return errors.New(fmt.Sprintf("notification type %s unknown.", t.Notification.Type))
 	}
 	return nil
+}
+
+type todos struct {
+	items []todo
+}
+
+func sorted(items []todo) []todo {
+	sortable := list(items)
+	sort.Sort(sortable)
+	return sortable.items
+}
+
+func list(items []todo) *todos {
+	return &todos{items}
+}
+
+func (t *todos) Len() int {
+	return len(t.items)
+}
+
+func (t *todos) Less(i, j int) bool {
+	return !t.items[i].Due.After(t.items[j].Due)
+}
+
+func (t *todos) Swap(i, j int) {
+	tmp := t.items[i]
+	t.items[i] = t.items[j]
+	t.items[j] = tmp
 }
 
 type notificationType string

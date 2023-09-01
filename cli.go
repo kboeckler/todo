@@ -91,26 +91,25 @@ func (cli *cli) add(arguments []string) {
 func (cli *cli) list() {
 	entries, idMap := cli.app.findAll()
 
-	for _, entry := range entries {
-		emph := color.New(color.FgHiBlack).SprintFunc()
+	for _, entry := range sorted(entries) {
 		blue := color.New(color.FgBlue).SprintFunc()
-		red := color.New(color.FgRed).SprintFunc()
+		magenta := color.New(color.FgMagenta).SprintFunc()
 		green := color.New(color.FgGreen).SprintFunc()
 		dueFunc := green
 		if entry.Due.Before(time.Now()) {
-			dueFunc = red
+			dueFunc = magenta
 		}
-		cli.Resultf("[%s] %s %s\n", blue(idMap[entry.Id.String()]), emph(entry.Title), dueFunc(cli.formatRelativeTo(entry.Due, time.Now())))
+		cli.Resultf("[%s] %s %s\n", blue(idMap[entry.Id.String()]), entry.Title, dueFunc(cli.formatRelativeTo(entry.Due, time.Now())))
 	}
 }
 
 func (cli *cli) due() {
 	entries, idMap := cli.app.findWhereDueBefore(time.Now())
 
-	for _, entry := range entries {
-		emph := color.New(color.FgHiBlack).SprintFunc()
+	for _, entry := range sorted(entries) {
 		blue := color.New(color.FgBlue).SprintFunc()
-		cli.Resultf("[%s] %s %s\n", blue(idMap[entry.Id.String()]), emph(entry.Title), cli.formatRelativeTo(entry.Due, time.Now()))
+		magenta := color.New(color.FgMagenta).SprintFunc()
+		cli.Resultf("[%s] %s %s\n", blue(idMap[entry.Id.String()]), entry.Title, magenta(cli.formatRelativeTo(entry.Due, time.Now())))
 	}
 }
 
@@ -135,15 +134,14 @@ func (cli *cli) show(arguments []string) {
 	if entry == nil {
 		cli.Errorf("No entry found matching %s\n", searchFor)
 	} else {
-		emph := color.New(color.FgHiBlack).SprintFunc()
 		blue := color.New(color.FgBlue).SprintFunc()
-		red := color.New(color.FgRed).SprintFunc()
+		magenta := color.New(color.FgMagenta).SprintFunc()
 		green := color.New(color.FgGreen).SprintFunc()
 		dueFunc := green
 		if entry.Due.Before(time.Now()) {
-			dueFunc = red
+			dueFunc = magenta
 		}
-		cli.Resultf("[%s]\n%s\n%s\n%s\n", blue(entryId), emph(entry.Title), dueFunc(cli.format(entry.Due)), entry.Details)
+		cli.Resultf("[%s]\n%s\n%s\n%s\n", blue(entryId), entry.Title, dueFunc(cli.format(entry.Due)), entry.Details)
 	}
 }
 
