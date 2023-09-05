@@ -64,24 +64,13 @@ func (cli *cli) run(args []string) {
 }
 
 func (cli *cli) add(arguments []string) {
-	due := time.Now().Add(24 * time.Hour)
-	lastTitleArgumentIndex := len(arguments) - 1
-	if len(arguments) >= 2 {
-		parsedDueIn, err := time.ParseDuration(arguments[len(arguments)-1])
-		if err == nil {
-			due = time.Now().Add(parsedDueIn)
-			lastTitleArgumentIndex--
-		}
+	var due time.Time
+	title, passedDue := cli.parseDurationAware(arguments)
+	if passedDue == nil {
+		due = time.Now().Add(24 * time.Hour)
+	} else {
+		due = time.Now().Add(*passedDue)
 	}
-	buffer := &bytes.Buffer{}
-	for i := 0; i <= lastTitleArgumentIndex; i++ {
-		argument := arguments[i]
-		buffer.WriteString(argument)
-		if i < len(arguments)-1 {
-			buffer.WriteRune(' ')
-		}
-	}
-	title := buffer.String()
 	err := cli.app.add(title, due)
 	if err != nil {
 		cli.Errorf("Could not create %s. Maybe this entry already exists?\n", title)
@@ -205,25 +194,13 @@ func (cli *cli) resolve(arguments []string) {
 }
 
 func (cli *cli) snooze(arguments []string) {
-	snoozeFor := 1 * time.Hour
-	lastTitleArgumentIndex := len(arguments) - 1
-	if len(arguments) >= 2 {
-		parsedDueIn, err := time.ParseDuration(arguments[len(arguments)-1])
-		if err == nil {
-			snoozeFor = parsedDueIn
-			lastTitleArgumentIndex--
-		}
+	var newDue time.Time
+	searchFor, snoozeFor := cli.parseDurationAware(arguments)
+	if snoozeFor == nil {
+		newDue = time.Now().Add(1 * time.Hour)
+	} else {
+		newDue = time.Now().Add(*snoozeFor)
 	}
-	searchFor := ""
-	buffer := &bytes.Buffer{}
-	for i := 0; i <= lastTitleArgumentIndex; i++ {
-		argument := arguments[i]
-		buffer.WriteString(argument)
-		if i < len(arguments)-1 {
-			buffer.WriteRune(' ')
-		}
-	}
-	searchFor = buffer.String()
 
 	var entry *todo
 
@@ -234,13 +211,36 @@ func (cli *cli) snooze(arguments []string) {
 	if entry == nil {
 		cli.Errorf("No entry found matching %s\n", searchFor)
 	} else {
-		err := cli.app.setNewDue(entry.Id, time.Now().Add(snoozeFor))
+		err := cli.app.setNewDue(entry.Id, newDue)
 		if err != nil {
 			cli.Errorf("Could not snooze %s %s: %s", entry.Id, entry.Title, err)
 		} else {
 			cli.Resultf("Snoozed %s %s\n", entry.Id, entry.Title)
 		}
 	}
+}
+
+func (cli *cli) parseDurationAware(arguments []string) (string, *time.Duration) {
+	var duration *time.Duration
+	titleArgs := arguments
+	if len(arguments) >= 2 {
+		parsedDueIn, err := time.ParseDuration(arguments[len(arguments)-1])
+		if err == nil {
+			duration = &parsedDueIn
+			titleArgs = arguments[:len(arguments)-1]
+		}
+	}
+	withoutDuration := ""
+	buffer := &bytes.Buffer{}
+	for i := 0; i < len(titleArgs); i++ {
+		argument := titleArgs[i]
+		buffer.WriteString(argument)
+		if i < len(titleArgs)-1 {
+			buffer.WriteRune(' ')
+		}
+	}
+	withoutDuration = buffer.String()
+	return withoutDuration, duration
 }
 
 func (cli *cli) format(timestamp time.Time) string {

@@ -126,6 +126,20 @@ func formatRelativeTo(eventTimeString string, relativeTimeString string) string 
 	return format
 }
 
+func TestParseDurationAware(t *testing.T) {
+	cli := cli{}
+	title, duration := cli.parseDurationAware([]string{"title", "2h"})
+	assertEquals(t, "title", title)
+	assertEquals(t, "2h0m0s", duration.String())
+}
+
+func TestParseDurationAware_inDuration(t *testing.T) {
+	cli := cli{}
+	title, duration := cli.parseDurationAware([]string{"title", "in", "2h"})
+	assertEquals(t, "title", title)
+	assertEquals(t, "2h0m0s", duration.String())
+}
+
 func assertEquals(t *testing.T, expected, actual string) {
 	if !strings.EqualFold(expected, actual) {
 		t.Errorf("Expected format result to be \"%s\", but was \"%s\".", expected, actual)

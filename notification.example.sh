@@ -5,5 +5,5 @@ if [ "$#" -ne 2 ]; then
 	exit 1
 fi
 
-notify-send -a "Todo" --hint='string:desktop-entry:todo' "$1" "$2"
+notify-send -u normal -a "Todo" --hint='string:desktop-entry:todo' "$1" "$2"
 
