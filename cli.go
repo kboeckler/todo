@@ -7,6 +7,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"io"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -227,7 +228,11 @@ func (cli *cli) parseDurationAware(arguments []string) (string, *time.Duration) 
 		parsedDueIn, err := time.ParseDuration(arguments[len(arguments)-1])
 		if err == nil {
 			duration = &parsedDueIn
-			titleArgs = arguments[:len(arguments)-1]
+			if strings.EqualFold("IN", strings.ToUpper(arguments[len(arguments)-2])) {
+				titleArgs = arguments[:len(arguments)-2]
+			} else {
+				titleArgs = arguments[:len(arguments)-1]
+			}
 		}
 	}
 	withoutDuration := ""
