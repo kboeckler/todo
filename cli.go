@@ -24,6 +24,31 @@ func (o *output) Errorf(format string, a ...any) {
 	_, _ = fmt.Fprintf(o.stderr, format, a...)
 }
 
+type timuration struct {
+	specifiedTime     *time.Time
+	specifiedDuration *time.Duration
+}
+
+func (t timuration) isEmpty() bool {
+	return t.specifiedTime == nil && t.specifiedDuration == nil
+}
+
+func (t timuration) hasTime() bool {
+	return t.specifiedTime != nil
+}
+
+func (t timuration) hasDuration() bool {
+	return t.hasDuration()
+}
+
+func (t timuration) Time() time.Time {
+	return *t.specifiedTime
+}
+
+func (t timuration) Duration() time.Duration {
+	return *t.specifiedDuration
+}
+
 type cli struct {
 	app *todoApp
 	output
@@ -66,11 +91,11 @@ func (cli *cli) run(args []string) {
 
 func (cli *cli) add(arguments []string) {
 	var due time.Time
-	title, passedDue := cli.parseDurationAware(arguments)
-	if passedDue == nil {
+	title, passedTimuration := cli.parseDurationAware(arguments)
+	if passedTimuration.isEmpty() {
 		due = time.Now().Add(24 * time.Hour)
 	} else {
-		due = time.Now().Add(*passedDue)
+		due = time.Now().Add(passedTimuration.Duration())
 	}
 	err := cli.app.add(title, due)
 	if err != nil {
@@ -196,11 +221,11 @@ func (cli *cli) resolve(arguments []string) {
 
 func (cli *cli) snooze(arguments []string) {
 	var newDue time.Time
-	searchFor, snoozeFor := cli.parseDurationAware(arguments)
-	if snoozeFor == nil {
+	searchFor, passedTimuration := cli.parseDurationAware(arguments)
+	if passedTimuration.isEmpty() {
 		newDue = time.Now().Add(1 * time.Hour)
 	} else {
-		newDue = time.Now().Add(*snoozeFor)
+		newDue = time.Now().Add(passedTimuration.Duration())
 	}
 
 	var entry *todo
@@ -221,7 +246,7 @@ func (cli *cli) snooze(arguments []string) {
 	}
 }
 
-func (cli *cli) parseDurationAware(arguments []string) (string, *time.Duration) {
+func (cli *cli) parseDurationAware(arguments []string) (string, timuration) {
 	var duration *time.Duration
 	titleArgs := arguments
 	if len(arguments) >= 2 {
@@ -245,7 +270,7 @@ func (cli *cli) parseDurationAware(arguments []string) (string, *time.Duration) 
 		}
 	}
 	withoutDuration = buffer.String()
-	return withoutDuration, duration
+	return withoutDuration, timuration{specifiedDuration: duration}
 }
 
 func (cli *cli) format(timestamp time.Time) string {

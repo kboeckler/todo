@@ -126,22 +126,41 @@ func formatRelativeTo(eventTimeString string, relativeTimeString string) string 
 	return format
 }
 
+func TestParseDurationAware_empty(t *testing.T) {
+	cli := cli{}
+	title, timuration := cli.parseDurationAware([]string{"title"})
+	assertEquals(t, "title", title)
+	assertTrue(t, timuration.isEmpty())
+}
+
 func TestParseDurationAware(t *testing.T) {
 	cli := cli{}
-	title, duration := cli.parseDurationAware([]string{"title", "2h"})
+	title, timuration := cli.parseDurationAware([]string{"title", "2h"})
 	assertEquals(t, "title", title)
-	assertEquals(t, "2h0m0s", duration.String())
+	assertEquals(t, "2h0m0s", timuration.Duration().String())
 }
 
 func TestParseDurationAware_inDuration(t *testing.T) {
 	cli := cli{}
-	title, duration := cli.parseDurationAware([]string{"title", "in", "2h"})
+	title, timuration := cli.parseDurationAware([]string{"title", "in", "2h"})
 	assertEquals(t, "title", title)
-	assertEquals(t, "2h0m0s", duration.String())
+	assertEquals(t, "2h0m0s", timuration.Duration().String())
 }
 
 func assertEquals(t *testing.T, expected, actual string) {
 	if !strings.EqualFold(expected, actual) {
 		t.Errorf("Expected format result to be \"%s\", but was \"%s\".", expected, actual)
+	}
+}
+
+func assertFalse(t *testing.T, actual bool) {
+	if false != actual {
+		t.Errorf("Expected \"%v\" to be \"%v\", but was not", false, actual)
+	}
+}
+
+func assertTrue(t *testing.T, actual bool) {
+	if true != actual {
+		t.Errorf("Expected \"%v\" to be \"%v\", but was not", true, actual)
 	}
 }
