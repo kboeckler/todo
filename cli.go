@@ -247,16 +247,27 @@ func (cli *cli) snooze(arguments []string) {
 }
 
 func (cli *cli) parseDurationAware(arguments []string) (string, timuration) {
-	var duration *time.Duration
+	var durationInArgs *time.Duration
+	var timeInArgs *time.Time
 	titleArgs := arguments
 	if len(arguments) >= 2 {
 		parsedDueIn, err := time.ParseDuration(arguments[len(arguments)-1])
 		if err == nil {
-			duration = &parsedDueIn
+			durationInArgs = &parsedDueIn
 			if strings.EqualFold("IN", strings.ToUpper(arguments[len(arguments)-2])) {
 				titleArgs = arguments[:len(arguments)-2]
 			} else {
 				titleArgs = arguments[:len(arguments)-1]
+			}
+		} else {
+			parsedTime, err := time.Parse(time.RFC3339, arguments[len(arguments)-1])
+			if err == nil {
+				timeInArgs = &parsedTime
+				if strings.EqualFold("AT", strings.ToUpper(arguments[len(arguments)-2])) {
+					titleArgs = arguments[:len(arguments)-2]
+				} else {
+					titleArgs = arguments[:len(arguments)-1]
+				}
 			}
 		}
 	}
@@ -270,7 +281,7 @@ func (cli *cli) parseDurationAware(arguments []string) (string, timuration) {
 		}
 	}
 	withoutDuration = buffer.String()
-	return withoutDuration, timuration{specifiedDuration: duration}
+	return withoutDuration, timuration{specifiedTime: timeInArgs, specifiedDuration: durationInArgs}
 }
 
 func (cli *cli) format(timestamp time.Time) string {
