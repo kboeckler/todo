@@ -57,7 +57,7 @@ func main() {
 		cliFormatter.DisableLevelTruncation = true
 		log.SetFormatter(cliFormatter)
 
-		cli := cli{app, output{os.Stdout, os.Stderr}, time.RFC1123}
+		cli := cli{app, output{os.Stdout, os.Stderr}, time.RFC1123, time.Local}
 
 		runner = func() {
 			cli.run(flag.Args())

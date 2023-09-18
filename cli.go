@@ -53,6 +53,7 @@ type cli struct {
 	app *todoApp
 	output
 	timeRenderLayout string
+	location         *time.Location
 }
 
 func (cli *cli) run(args []string) {
@@ -260,7 +261,7 @@ func (cli *cli) parseDurationAware(arguments []string) (string, timuration) {
 				titleArgs = arguments[:len(arguments)-1]
 			}
 		} else {
-			parsedTime, err := time.Parse(time.RFC3339, arguments[len(arguments)-1])
+			parsedTime, err := time.ParseInLocation("2006-01-02 15:04", arguments[len(arguments)-1], cli.location)
 			if err == nil {
 				timeInArgs = &parsedTime
 				if strings.EqualFold("AT", strings.ToUpper(arguments[len(arguments)-2])) {

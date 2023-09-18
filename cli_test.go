@@ -119,7 +119,7 @@ func TestFormatRelativeTo_sinceThreeDays(t *testing.T) {
 }
 
 func formatRelativeTo(eventTimeString string, relativeTimeString string) string {
-	cli := cli{timeRenderLayout: time.RFC3339}
+	cli := cli{timeRenderLayout: time.RFC3339, location: testLocation()}
 	relativeTime, _ := time.Parse(time.RFC3339, relativeTimeString)
 	eventTime, _ := time.Parse(time.RFC3339, eventTimeString)
 	format := cli.formatRelativeTo(eventTime, relativeTime)
@@ -127,38 +127,38 @@ func formatRelativeTo(eventTimeString string, relativeTimeString string) string 
 }
 
 func TestParseDurationAware_empty(t *testing.T) {
-	cli := cli{}
+	cli := cli{location: testLocation()}
 	title, timuration := cli.parseDurationAware([]string{"title"})
 	assertEquals(t, "title", title)
 	assertTrue(t, timuration.isEmpty())
 }
 
 func TestParseDurationAware_onlyDuration(t *testing.T) {
-	cli := cli{}
+	cli := cli{location: testLocation()}
 	title, timuration := cli.parseDurationAware([]string{"title", "2h"})
 	assertEquals(t, "title", title)
 	assertEquals(t, "2h0m0s", timuration.Duration().String())
 }
 
 func TestParseDurationAware_inDuration(t *testing.T) {
-	cli := cli{}
+	cli := cli{location: testLocation()}
 	title, timuration := cli.parseDurationAware([]string{"title", "in", "2h"})
 	assertEquals(t, "title", title)
 	assertEquals(t, "2h0m0s", timuration.Duration().String())
 }
 
 func TestParseDurationAware_onlyTime(t *testing.T) {
-	cli := cli{}
-	title, timuration := cli.parseDurationAware([]string{"title", "2023-09-18T14:00:00+01:00"})
+	cli := cli{location: testLocation()}
+	title, timuration := cli.parseDurationAware([]string{"title", "2023-11-18 14:00"})
 	assertEquals(t, "title", title)
-	assertEquals(t, "2023-09-18T14:00:00+01:00", timuration.Time().Format(time.RFC3339))
+	assertEquals(t, "2023-11-18T14:00:00+01:00", timuration.Time().Format(time.RFC3339))
 }
 
 func TestParseDurationAware_atTime(t *testing.T) {
-	cli := cli{}
-	title, timuration := cli.parseDurationAware([]string{"title", "at", "2023-09-18T14:00:00+01:00"})
+	cli := cli{location: testLocation()}
+	title, timuration := cli.parseDurationAware([]string{"title", "at", "2023-11-18 14:00"})
 	assertEquals(t, "title", title)
-	assertEquals(t, "2023-09-18T14:00:00+01:00", timuration.Time().Format(time.RFC3339))
+	assertEquals(t, "2023-11-18T14:00:00+01:00", timuration.Time().Format(time.RFC3339))
 }
 
 func assertEquals(t *testing.T, expected, actual string) {
@@ -177,4 +177,9 @@ func assertTrue(t *testing.T, actual bool) {
 	if true != actual {
 		t.Errorf("Expected \"%v\" to be \"%v\", but was not", true, actual)
 	}
+}
+
+func testLocation() *time.Location {
+	loc, _ := time.LoadLocation("Europe/Berlin")
+	return loc
 }
