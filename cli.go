@@ -38,7 +38,7 @@ func (t timuration) hasTime() bool {
 }
 
 func (t timuration) hasDuration() bool {
-	return t.hasDuration()
+	return t.specifiedDuration != nil
 }
 
 func (t timuration) Time() time.Time {
@@ -93,10 +93,12 @@ func (cli *cli) run(args []string) {
 func (cli *cli) add(arguments []string) {
 	var due time.Time
 	title, passedTimuration := cli.parseDurationAware(arguments)
-	if passedTimuration.isEmpty() {
-		due = time.Now().Add(24 * time.Hour)
-	} else {
+	if passedTimuration.hasDuration() {
 		due = time.Now().Add(passedTimuration.Duration())
+	} else if passedTimuration.hasTime() {
+		due = passedTimuration.Time()
+	} else {
+		due = time.Now().Add(24 * time.Hour)
 	}
 	err := cli.app.add(title, due)
 	if err != nil {
@@ -223,10 +225,12 @@ func (cli *cli) resolve(arguments []string) {
 func (cli *cli) snooze(arguments []string) {
 	var newDue time.Time
 	searchFor, passedTimuration := cli.parseDurationAware(arguments)
-	if passedTimuration.isEmpty() {
-		newDue = time.Now().Add(1 * time.Hour)
-	} else {
+	if passedTimuration.hasDuration() {
 		newDue = time.Now().Add(passedTimuration.Duration())
+	} else if passedTimuration.hasTime() {
+		newDue = passedTimuration.Time()
+	} else {
+		newDue = time.Now().Add(1 * time.Hour)
 	}
 
 	var entry *todo
