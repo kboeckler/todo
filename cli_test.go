@@ -147,6 +147,13 @@ func TestParseDurationAware_inDuration(t *testing.T) {
 	assertEquals(t, "2h0m0s", timuration.Duration().String())
 }
 
+func TestParseDurationAware_inNothing(t *testing.T) {
+	cli := cli{location: locationBerlin()}
+	title, timuration := cli.parseDurationAware([]string{"title", "in", "nothing"})
+	assertEquals(t, "title in nothing", title)
+	assertFalse(t, timuration.hasDuration())
+}
+
 func TestParseDurationAware_onlyTime(t *testing.T) {
 	cli := cli{location: locationBerlin()}
 	title, timuration := cli.parseDurationAware([]string{"title", "2023-11-18 14:00"})
@@ -159,6 +166,13 @@ func TestParseDurationAware_atTime(t *testing.T) {
 	title, timuration := cli.parseDurationAware([]string{"title", "at", "2023-11-18 14:00"})
 	assertEquals(t, "title", title)
 	assertEquals(t, "2023-11-18T14:00:00+01:00", timuration.Time().Format(time.RFC3339))
+}
+
+func TestParseDurationAware_atNothing(t *testing.T) {
+	cli := cli{location: locationBerlin()}
+	title, timuration := cli.parseDurationAware([]string{"title", "at", "nothing"})
+	assertEquals(t, "title at nothing", title)
+	assertFalse(t, timuration.hasTime())
 }
 
 func assertEquals(t *testing.T, expected, actual string) {
