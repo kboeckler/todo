@@ -273,6 +273,16 @@ func (cli *cli) parseDurationAware(arguments []string) (string, timuration) {
 				} else {
 					titleArgs = arguments[:len(arguments)-1]
 				}
+			} else if len(arguments) >= 3 {
+				parsedTime, err = time.ParseInLocation("2006-01-02 15:04", arguments[len(arguments)-2]+" "+arguments[len(arguments)-1], cli.location)
+				if err == nil {
+					timeInArgs = &parsedTime
+					if strings.EqualFold("AT", strings.ToUpper(arguments[len(arguments)-3])) {
+						titleArgs = arguments[:len(arguments)-3]
+					} else {
+						titleArgs = arguments[:len(arguments)-2]
+					}
+				}
 			}
 		}
 	}

@@ -168,6 +168,13 @@ func TestParseDurationAware_atTime(t *testing.T) {
 	assertEquals(t, "2023-11-18T14:00:00+01:00", timuration.Time().Format(time.RFC3339))
 }
 
+func TestParseDurationAware_atTimeInTwoWords(t *testing.T) {
+	cli := cli{location: locationBerlin()}
+	title, timuration := cli.parseDurationAware([]string{"title", "at", "2023-11-18", "14:00"})
+	assertEquals(t, "title", title)
+	assertEquals(t, "2023-11-18T14:00:00+01:00", timuration.Time().Format(time.RFC3339))
+}
+
 func TestParseDurationAware_atNothing(t *testing.T) {
 	cli := cli{location: locationBerlin()}
 	title, timuration := cli.parseDurationAware([]string{"title", "at", "nothing"})
