@@ -151,6 +151,15 @@ func TestParseTimuration_inDuration(t *testing.T) {
 	assertEquals(t, "2023-11-18T16:00:00+01:00", newTime.Format(time.RFC3339))
 }
 
+func TestParseTimuration_tomorrow(t *testing.T) {
+	refTime, _ := time.Parse(time.RFC3339, "2023-11-18T14:00:00+01:00")
+	cli := cli{location: locationBerlin()}
+	title, timuration := cli.parseTimuration([]string{"title", "tomorrow"})
+	newTime := timuration.CalculateFrom(refTime)
+	assertEquals(t, "title", title)
+	assertEquals(t, "2023-11-19T11:00:00+01:00", newTime.Format(time.RFC3339))
+}
+
 func TestParseTimuration_inNothing(t *testing.T) {
 	cli := cli{location: locationBerlin()}
 	title, timuration := cli.parseTimuration([]string{"title", "in", "nothing"})
