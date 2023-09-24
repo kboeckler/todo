@@ -33,20 +33,15 @@ func (t timuration) isEmpty() bool {
 	return t.specifiedTime == nil && t.specifiedDuration == nil
 }
 
-func (t timuration) hasTime() bool {
-	return t.specifiedTime != nil
-}
+func (t timuration) CalculateFrom(relativeTo time.Time) time.Time {
+	if t.specifiedTime != nil {
+		return *t.specifiedTime
+	}
+	if t.specifiedDuration != nil {
+		return relativeTo.Add(*t.specifiedDuration)
+	}
 
-func (t timuration) hasDuration() bool {
-	return t.specifiedDuration != nil
-}
-
-func (t timuration) Time() time.Time {
-	return *t.specifiedTime
-}
-
-func (t timuration) Duration() time.Duration {
-	return *t.specifiedDuration
+	return relativeTo
 }
 
 type cli struct {
@@ -93,10 +88,8 @@ func (cli *cli) run(args []string) {
 func (cli *cli) add(arguments []string) {
 	var due time.Time
 	title, passedTimuration := cli.parseTimuration(arguments)
-	if passedTimuration.hasDuration() {
-		due = time.Now().Add(passedTimuration.Duration())
-	} else if passedTimuration.hasTime() {
-		due = passedTimuration.Time()
+	if !passedTimuration.isEmpty() {
+		due = passedTimuration.CalculateFrom(time.Now())
 	} else {
 		due = time.Now().Add(24 * time.Hour)
 	}
@@ -225,10 +218,8 @@ func (cli *cli) resolve(arguments []string) {
 func (cli *cli) snooze(arguments []string) {
 	var newDue time.Time
 	searchFor, passedTimuration := cli.parseTimuration(arguments)
-	if passedTimuration.hasDuration() {
-		newDue = time.Now().Add(passedTimuration.Duration())
-	} else if passedTimuration.hasTime() {
-		newDue = passedTimuration.Time()
+	if !passedTimuration.isEmpty() {
+		newDue = passedTimuration.CalculateFrom(time.Now())
 	} else {
 		newDue = time.Now().Add(1 * time.Hour)
 	}
