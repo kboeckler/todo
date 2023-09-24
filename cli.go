@@ -92,7 +92,7 @@ func (cli *cli) run(args []string) {
 
 func (cli *cli) add(arguments []string) {
 	var due time.Time
-	title, passedTimuration := cli.parseDurationAware(arguments)
+	title, passedTimuration := cli.parseTimuration(arguments)
 	if passedTimuration.hasDuration() {
 		due = time.Now().Add(passedTimuration.Duration())
 	} else if passedTimuration.hasTime() {
@@ -224,7 +224,7 @@ func (cli *cli) resolve(arguments []string) {
 
 func (cli *cli) snooze(arguments []string) {
 	var newDue time.Time
-	searchFor, passedTimuration := cli.parseDurationAware(arguments)
+	searchFor, passedTimuration := cli.parseTimuration(arguments)
 	if passedTimuration.hasDuration() {
 		newDue = time.Now().Add(passedTimuration.Duration())
 	} else if passedTimuration.hasTime() {
@@ -251,7 +251,7 @@ func (cli *cli) snooze(arguments []string) {
 	}
 }
 
-func (cli *cli) parseDurationAware(arguments []string) (string, timuration) {
+func (cli *cli) parseTimuration(arguments []string) (string, timuration) {
 	var durationInArgs *time.Duration
 	var timeInArgs *time.Time
 	titleArgs := arguments

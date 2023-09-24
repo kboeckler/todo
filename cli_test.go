@@ -126,58 +126,58 @@ func formatRelativeTo(eventTimeString string, relativeTimeString string) string 
 	return format
 }
 
-func TestParseDurationAware_empty(t *testing.T) {
+func TestParseTimuration_empty(t *testing.T) {
 	cli := cli{location: locationBerlin()}
-	title, timuration := cli.parseDurationAware([]string{"title"})
+	title, timuration := cli.parseTimuration([]string{"title"})
 	assertEquals(t, "title", title)
 	assertTrue(t, timuration.isEmpty())
 }
 
-func TestParseDurationAware_onlyDuration(t *testing.T) {
+func TestParseTimuration_onlyDuration(t *testing.T) {
 	cli := cli{location: locationBerlin()}
-	title, timuration := cli.parseDurationAware([]string{"title", "2h"})
+	title, timuration := cli.parseTimuration([]string{"title", "2h"})
 	assertEquals(t, "title", title)
 	assertEquals(t, "2h0m0s", timuration.Duration().String())
 }
 
-func TestParseDurationAware_inDuration(t *testing.T) {
+func TestParseTimuration_inDuration(t *testing.T) {
 	cli := cli{location: locationBerlin()}
-	title, timuration := cli.parseDurationAware([]string{"title", "in", "2h"})
+	title, timuration := cli.parseTimuration([]string{"title", "in", "2h"})
 	assertEquals(t, "title", title)
 	assertEquals(t, "2h0m0s", timuration.Duration().String())
 }
 
-func TestParseDurationAware_inNothing(t *testing.T) {
+func TestParseTimuration_inNothing(t *testing.T) {
 	cli := cli{location: locationBerlin()}
-	title, timuration := cli.parseDurationAware([]string{"title", "in", "nothing"})
+	title, timuration := cli.parseTimuration([]string{"title", "in", "nothing"})
 	assertEquals(t, "title in nothing", title)
 	assertFalse(t, timuration.hasDuration())
 }
 
-func TestParseDurationAware_onlyTime(t *testing.T) {
+func TestParseTimuration_onlyTime(t *testing.T) {
 	cli := cli{location: locationBerlin()}
-	title, timuration := cli.parseDurationAware([]string{"title", "2023-11-18 14:00"})
+	title, timuration := cli.parseTimuration([]string{"title", "2023-11-18 14:00"})
 	assertEquals(t, "title", title)
 	assertEquals(t, "2023-11-18T14:00:00+01:00", timuration.Time().Format(time.RFC3339))
 }
 
-func TestParseDurationAware_atTime(t *testing.T) {
+func TestParseTimuration_atTime(t *testing.T) {
 	cli := cli{location: locationBerlin()}
-	title, timuration := cli.parseDurationAware([]string{"title", "at", "2023-11-18 14:00"})
+	title, timuration := cli.parseTimuration([]string{"title", "at", "2023-11-18 14:00"})
 	assertEquals(t, "title", title)
 	assertEquals(t, "2023-11-18T14:00:00+01:00", timuration.Time().Format(time.RFC3339))
 }
 
-func TestParseDurationAware_atTimeInTwoWords(t *testing.T) {
+func TestParseTimuration_atTimeInTwoWords(t *testing.T) {
 	cli := cli{location: locationBerlin()}
-	title, timuration := cli.parseDurationAware([]string{"title", "at", "2023-11-18", "14:00"})
+	title, timuration := cli.parseTimuration([]string{"title", "at", "2023-11-18", "14:00"})
 	assertEquals(t, "title", title)
 	assertEquals(t, "2023-11-18T14:00:00+01:00", timuration.Time().Format(time.RFC3339))
 }
 
-func TestParseDurationAware_atNothing(t *testing.T) {
+func TestParseTimuration_atNothing(t *testing.T) {
 	cli := cli{location: locationBerlin()}
-	title, timuration := cli.parseDurationAware([]string{"title", "at", "nothing"})
+	title, timuration := cli.parseTimuration([]string{"title", "at", "nothing"})
 	assertEquals(t, "title at nothing", title)
 	assertFalse(t, timuration.hasTime())
 }
