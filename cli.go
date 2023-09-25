@@ -27,6 +27,7 @@ func (o *output) Errorf(format string, a ...any) {
 type timuration struct {
 	specifiedTime     *time.Time
 	specifiedDuration *time.Duration
+	calculationFunc   *func(time.Time) time.Time
 }
 
 func (t timuration) isEmpty() bool {
@@ -40,7 +41,9 @@ func (t timuration) CalculateFrom(relativeTo time.Time) time.Time {
 	if t.specifiedDuration != nil {
 		return relativeTo.Add(*t.specifiedDuration)
 	}
-
+	if t.calculationFunc != nil {
+		return (*t.calculationFunc)(relativeTo)
+	}
 	return relativeTo
 }
 
@@ -245,8 +248,10 @@ func (cli *cli) snooze(arguments []string) {
 func (cli *cli) parseTimuration(arguments []string) (string, timuration) {
 	var durationInArgs *time.Duration
 	var timeInArgs *time.Time
+	var calculationFunc *func(time.Time) time.Time
 	titleArgs := arguments
 	if len(arguments) >= 2 {
+		// 1. Is arg duration?
 		parsedDueIn, err := time.ParseDuration(arguments[len(arguments)-1])
 		if err == nil {
 			durationInArgs = &parsedDueIn
@@ -256,22 +261,36 @@ func (cli *cli) parseTimuration(arguments []string) (string, timuration) {
 				titleArgs = arguments[:len(arguments)-1]
 			}
 		} else {
-			parsedTime, err := time.ParseInLocation("2006-01-02 15:04", arguments[len(arguments)-1], cli.location)
-			if err == nil {
-				timeInArgs = &parsedTime
-				if strings.EqualFold("AT", strings.ToUpper(arguments[len(arguments)-2])) {
-					titleArgs = arguments[:len(arguments)-2]
-				} else {
-					titleArgs = arguments[:len(arguments)-1]
+			// 2. Is Arg tomorrow?
+			if strings.EqualFold("TOMORROW", strings.ToUpper(arguments[len(arguments)-1])) {
+				fu := func(relativeTo time.Time) time.Time {
+					todayAtZero := time.Date(relativeTo.Year(), relativeTo.Month(), relativeTo.Day(), 0, 0, 0, 0, cli.location)
+					tomorrowAtZero := todayAtZero.Add(24 * time.Hour)
+					tomorrowAtEleven := tomorrowAtZero.Add(11 * time.Hour)
+					return tomorrowAtEleven
 				}
-			} else if len(arguments) >= 3 {
-				parsedTime, err = time.ParseInLocation("2006-01-02 15:04", arguments[len(arguments)-2]+" "+arguments[len(arguments)-1], cli.location)
+				calculationFunc = &fu
+				titleArgs = arguments[:len(arguments)-1]
+			} else {
+				// 3. Is arg time?
+				parsedTime, err := time.ParseInLocation("2006-01-02 15:04", arguments[len(arguments)-1], cli.location)
 				if err == nil {
 					timeInArgs = &parsedTime
-					if strings.EqualFold("AT", strings.ToUpper(arguments[len(arguments)-3])) {
-						titleArgs = arguments[:len(arguments)-3]
-					} else {
+					if strings.EqualFold("AT", strings.ToUpper(arguments[len(arguments)-2])) {
 						titleArgs = arguments[:len(arguments)-2]
+					} else {
+						titleArgs = arguments[:len(arguments)-1]
+					}
+				} else if len(arguments) >= 3 {
+					// 4. Is arg time with spaces?
+					parsedTime, err = time.ParseInLocation("2006-01-02 15:04", arguments[len(arguments)-2]+" "+arguments[len(arguments)-1], cli.location)
+					if err == nil {
+						timeInArgs = &parsedTime
+						if strings.EqualFold("AT", strings.ToUpper(arguments[len(arguments)-3])) {
+							titleArgs = arguments[:len(arguments)-3]
+						} else {
+							titleArgs = arguments[:len(arguments)-2]
+						}
 					}
 				}
 			}
@@ -287,7 +306,7 @@ func (cli *cli) parseTimuration(arguments []string) (string, timuration) {
 		}
 	}
 	withoutDuration = buffer.String()
-	return withoutDuration, timuration{specifiedTime: timeInArgs, specifiedDuration: durationInArgs}
+	return withoutDuration, timuration{specifiedTime: timeInArgs, specifiedDuration: durationInArgs, calculationFunc: calculationFunc}
 }
 
 func (cli *cli) format(timestamp time.Time) string {
