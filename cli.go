@@ -7,7 +7,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"io"
 	"os"
-	"strings"
 	"time"
 )
 
@@ -22,41 +21,6 @@ func (o *output) Resultf(format string, a ...any) {
 
 func (o *output) Errorf(format string, a ...any) {
 	_, _ = fmt.Fprintf(o.stderr, format, a...)
-}
-
-type MapTime func(time.Time) time.Time
-
-func tomorrow(location *time.Location) MapTime {
-	return func(relativeTo time.Time) time.Time {
-		todayAtZero := time.Date(relativeTo.Year(), relativeTo.Month(), relativeTo.Day(), 0, 0, 0, 0, location)
-		tomorrowAtZero := todayAtZero.Add(24 * time.Hour)
-		tomorrowAtEleven := tomorrowAtZero.Add(11 * time.Hour)
-		return tomorrowAtEleven
-	}
-}
-
-func atTime(at time.Time) MapTime {
-	return func(relativeTo time.Time) time.Time {
-		return at
-	}
-}
-
-func inDuration(in time.Duration) MapTime {
-	return func(relativeTo time.Time) time.Time {
-		return relativeTo.Add(in)
-	}
-}
-
-type timuration struct {
-	calculationFunc MapTime
-}
-
-func (t timuration) isEmpty() bool {
-	return t.calculationFunc == nil
-}
-
-func (t timuration) CalculateFrom(relativeTo time.Time) time.Time {
-	return t.calculationFunc(relativeTo)
 }
 
 type cli struct {
@@ -102,9 +66,9 @@ func (cli *cli) run(args []string) {
 
 func (cli *cli) add(arguments []string) {
 	var due time.Time
-	title, passedTimuration := cli.parseTimuration(arguments)
-	if !passedTimuration.isEmpty() {
-		due = passedTimuration.CalculateFrom(time.Now())
+	title, timer := ParseTimer(arguments, cli.location)
+	if !timer.isEmpty() {
+		due = timer.Resolve(time.Now())
 	} else {
 		due = time.Now().Add(24 * time.Hour)
 	}
@@ -232,9 +196,9 @@ func (cli *cli) resolve(arguments []string) {
 
 func (cli *cli) snooze(arguments []string) {
 	var newDue time.Time
-	searchFor, passedTimuration := cli.parseTimuration(arguments)
-	if !passedTimuration.isEmpty() {
-		newDue = passedTimuration.CalculateFrom(time.Now())
+	searchFor, timer := ParseTimer(arguments, cli.location)
+	if !timer.isEmpty() {
+		newDue = timer.Resolve(time.Now())
 	} else {
 		newDue = time.Now().Add(1 * time.Hour)
 	}
@@ -255,62 +219,6 @@ func (cli *cli) snooze(arguments []string) {
 			cli.Resultf("Snoozed %s %s\n", entry.Id, entry.Title)
 		}
 	}
-}
-
-func (cli *cli) parseTimuration(arguments []string) (string, timuration) {
-	var calculationFunc MapTime = nil
-	titleArgs := arguments
-	if len(arguments) >= 2 {
-		// 1. Is arg duration?
-		parsedDueIn, err := time.ParseDuration(arguments[len(arguments)-1])
-		if err == nil {
-			calculationFunc = inDuration(parsedDueIn)
-			if strings.EqualFold("IN", strings.ToUpper(arguments[len(arguments)-2])) {
-				titleArgs = arguments[:len(arguments)-2]
-			} else {
-				titleArgs = arguments[:len(arguments)-1]
-			}
-		} else {
-			// 2. Is Arg tomorrow?
-			if strings.EqualFold("TOMORROW", strings.ToUpper(arguments[len(arguments)-1])) {
-				calculationFunc = tomorrow(cli.location)
-				titleArgs = arguments[:len(arguments)-1]
-			} else {
-				// 3. Is arg time?
-				parsedTime, err := time.ParseInLocation("2006-01-02 15:04", arguments[len(arguments)-1], cli.location)
-				if err == nil {
-					calculationFunc = atTime(parsedTime)
-					if strings.EqualFold("AT", strings.ToUpper(arguments[len(arguments)-2])) {
-						titleArgs = arguments[:len(arguments)-2]
-					} else {
-						titleArgs = arguments[:len(arguments)-1]
-					}
-				} else if len(arguments) >= 3 {
-					// 4. Is arg time with spaces?
-					parsedTime, err = time.ParseInLocation("2006-01-02 15:04", arguments[len(arguments)-2]+" "+arguments[len(arguments)-1], cli.location)
-					if err == nil {
-						calculationFunc = atTime(parsedTime)
-						if strings.EqualFold("AT", strings.ToUpper(arguments[len(arguments)-3])) {
-							titleArgs = arguments[:len(arguments)-3]
-						} else {
-							titleArgs = arguments[:len(arguments)-2]
-						}
-					}
-				}
-			}
-		}
-	}
-	withoutDuration := ""
-	buffer := &bytes.Buffer{}
-	for i := 0; i < len(titleArgs); i++ {
-		argument := titleArgs[i]
-		buffer.WriteString(argument)
-		if i < len(titleArgs)-1 {
-			buffer.WriteRune(' ')
-		}
-	}
-	withoutDuration = buffer.String()
-	return withoutDuration, timuration{calculationFunc: calculationFunc}
 }
 
 func (cli *cli) format(timestamp time.Time) string {
