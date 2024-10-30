@@ -34,18 +34,18 @@ func (app *todoApp) findWhereDueBefore(due time.Time) ([]todo, ShortIdMap) {
 	return matching, idMap
 }
 
-func (app *todoApp) findWhereDueBeforeAndByNotificationTypeAndNotifiedAtEmpty(due time.Time, notType notificationType) []todo {
-	todos, _ := app.readAllEntriesAndBuildIdMapInternal()
+func (app *todoApp) findToBeNotifiedByDueBefore(due time.Time) ([]todo, ShortIdMap) {
+	todos, idMap := app.readAllEntriesAndBuildIdMapInternal()
 
 	matching := make([]todo, 0)
 
 	for _, entry := range todos {
-		if entry.Due.Before(due) && entry.Notification.Type == notType && entry.Notification.NotifiedAt.IsZero() {
+		if entry.Due.Before(due) && entry.Notification.Type == NotificationTypeOnce && entry.Notification.NotifiedAt.IsZero() {
 			matching = append(matching, entry)
 		}
 	}
 
-	return matching
+	return matching, idMap
 }
 
 func (app *todoApp) find(searchFor string) (*todo, string) {
@@ -96,8 +96,8 @@ func (app *todoApp) find(searchFor string) (*todo, string) {
 	return matching, shortId
 }
 
-func (app *todoApp) add(title string, due time.Time) error {
-	todo := todo{Title: title, Id: uuid.New(), Due: due, Notification: notification{Type: NotificationTypeOnce}}
+func (app *todoApp) add(title string, details string, due time.Time) error {
+	todo := todo{Title: title, Details: details, Id: uuid.New(), Due: due, Notification: notification{Type: NotificationTypeOnce}}
 	return app.repo.insertEntry(todo, todo.Title+".yml")
 }
 

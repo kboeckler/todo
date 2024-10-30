@@ -74,7 +74,7 @@ func (server *server) loop(ctx context.Context) error {
 
 func (server *server) handleNotifications() error {
 	if len(server.app.config.NotificationCmd) > 0 {
-		todos := server.app.findWhereDueBeforeAndByNotificationTypeAndNotifiedAtEmpty(time.Now(), NotificationTypeOnce)
+		todos, _ := server.app.findToBeNotifiedByDueBefore(time.Now())
 		for _, todo := range todos {
 			cmd := exec.Command(server.app.config.NotificationCmd, todo.Title, server.renderNotificationText(todo))
 			log.Debugf("Calling notification command: %s", cmd)

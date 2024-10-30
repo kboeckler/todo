@@ -17,7 +17,7 @@ func main() {
 	debug := flag.Bool("debug", false, "enable debugging messages")
 	runAsServer := flag.Bool("server", false, "run server instance - additional cli commands will be ignored")
 	runInTray := flag.Bool("tray", false, "run in tray - does not do anything when not run as server")
-	logFile := flag.String("logfile", "", "location of file to append log to - does not do anything when not run as server")
+	logFile := flag.String("filename", "", "location of file to append log to - does not do anything when not run as server")
 	flag.Usage = usage
 
 	flag.Parse()
@@ -40,7 +40,7 @@ func main() {
 		log.SetReportCaller(true)
 		log.SetFormatter(serverFormatter)
 		if len(*logFile) > 0 {
-			log.SetOutput(newFileWriter(*logFile))
+			log.SetOutput(newFileWriter(*logFile, true))
 		}
 
 		server := server{app: app, timeRenderLayout: time.RFC1123}
@@ -72,6 +72,7 @@ type config struct {
 	TodoDir         string        `properties:"todoDir,default="`
 	Tick            time.Duration `properties:"tick,default=0"`
 	NotificationCmd string        `properties:"notification_command,default="`
+	EditorCmd       string        `properties:"notification_command,default="`
 	TrayIcon        string        `properties:"tray_icon,default="`
 }
 
@@ -101,6 +102,9 @@ func loadConfig() config {
 	}
 	if config.Tick == 0 {
 		config.Tick = 1 * time.Second
+	}
+	if len(config.EditorCmd) == 0 {
+		config.EditorCmd = "vim"
 	}
 	if len(config.TrayIcon) == 0 {
 		config.TrayIcon = "todo.png"

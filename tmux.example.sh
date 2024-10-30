@@ -5,4 +5,3 @@
 DUE=$(todo due | wc -l)
 ALL=$(todo list | wc -l)
 echo "$ALL($DUE)"
-

@@ -7,6 +7,9 @@ import (
 	log "github.com/sirupsen/logrus"
 	"io"
 	"os"
+	"os/exec"
+	"regexp"
+	"strings"
 	"time"
 )
 
@@ -72,15 +75,96 @@ func (cli *cli) add(arguments []string) {
 	} else {
 		due = time.Now().Add(24 * time.Hour)
 	}
-	err := cli.app.add(title, due)
-	if err != nil {
-		cli.Errorf("Could not create %s. Maybe this entry already exists?\n", title)
+
+	userInput := cli.createDescriptionInput(title, due)
+	editorUserInput, _ := cli.openInEditor(userInput)
+	cleansedUserInput := cli.cleanseInput(editorUserInput)
+
+	if len(cleansedUserInput) == 0 {
+		cli.Errorf("Skip creating %s due to an empty title.\n", title)
+	} else {
+		userTitle, userDescription := cli.parseDescriptionInput(cleansedUserInput)
+		err := cli.app.add(userTitle, userDescription, due)
+		if err != nil {
+			cli.Errorf("Could not create %s. Maybe this entry already exists?\n", title)
+		}
 	}
+
+}
+
+func (cli *cli) createDescriptionInput(title string, due time.Time) string {
+	return fmt.Sprintf(`%s
+# Please enter the title of your todo, adding a description after
+# an empty line if needed. Lines starting with '#' will be ignored,
+# and an empty message aborts this command.
+#
+# Title from command: %s
+# Due date of this todo: %s
+`, title, title, cli.format(due))
+}
+
+func (cli *cli) parseDescriptionInput(input string) (title string, description string) {
+	split := strings.Split(input, "\n\n")
+	title = strings.TrimSpace(split[0])
+	description = ""
+	if len(split) > 1 {
+		description = strings.TrimSpace(strings.Replace(input, title+"\n\n", "", 1))
+	}
+	return
+}
+
+func (cli *cli) cleanseInput(input string) string {
+	commentRegex, err := regexp.Compile("#.*\\n")
+	if err != nil {
+		panic(err)
+	}
+	replacedString := commentRegex.ReplaceAllString(input, "")
+	trimmed := strings.Trim(replacedString, " \n")
+	multiNewLineRegex, err := regexp.Compile("\\n[ \\n]+\\n")
+	if err != nil {
+		panic(err)
+	}
+	return multiNewLineRegex.ReplaceAllString(trimmed, "\n\n")
+}
+
+func (cli *cli) openInEditor(input string) (string, error) {
+	_, err := newFileWriter("todo.tmp", false).Write([]byte(input))
+	if err != nil {
+		return input, err
+	}
+	defer newFileDeleter("todo.tmp").Delete()
+	cmd := exec.Command(cli.app.config.EditorCmd, "todo.tmp")
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	log.Debugf("Calling editor command: %s", cmd)
+	err = cmd.Run()
+	if err == nil {
+		log.Debugf("Executing editor command was successful")
+	} else {
+		log.Debugf("Error of executing editor command: %s", err)
+		return input, err
+	}
+	result, err := newFileReader("add.tmp").ReadString()
+	if err != nil {
+		return input, err
+	}
+	return result, nil
 }
 
 func (cli *cli) list() {
 	entries, idMap := cli.app.findAll()
 
+	cli.printEntries(entries, idMap)
+}
+
+func (cli *cli) due() {
+	entries, idMap := cli.app.findWhereDueBefore(time.Now())
+
+	cli.printEntries(entries, idMap)
+}
+
+func (cli *cli) printEntries(entries []todo, idMap ShortIdMap) {
 	for _, entry := range sorted(entries) {
 		blue := color.New(color.FgBlue).SprintFunc()
 		magenta := color.New(color.FgMagenta).SprintFunc()
@@ -90,16 +174,6 @@ func (cli *cli) list() {
 			dueFunc = magenta
 		}
 		cli.Resultf("[%s] %s %s\n", blue(idMap[entry.Id.String()]), entry.Title, dueFunc(cli.formatRelativeTo(entry.Due, time.Now())))
-	}
-}
-
-func (cli *cli) due() {
-	entries, idMap := cli.app.findWhereDueBefore(time.Now())
-
-	for _, entry := range sorted(entries) {
-		blue := color.New(color.FgBlue).SprintFunc()
-		magenta := color.New(color.FgMagenta).SprintFunc()
-		cli.Resultf("[%s] %s %s\n", blue(idMap[entry.Id.String()]), entry.Title, magenta(cli.formatRelativeTo(entry.Due, time.Now())))
 	}
 }
 
@@ -131,7 +205,11 @@ func (cli *cli) show(arguments []string) {
 		if entry.Due.Before(time.Now()) {
 			dueFunc = magenta
 		}
-		cli.Resultf("[%s]\n%s\n%s\n%s\n", blue(entryId), entry.Title, dueFunc(cli.format(entry.Due)), entry.Details)
+		details := ""
+		if len(entry.Details) > 0 {
+			details = entry.Details + "\n"
+		}
+		cli.Resultf("[%s]\n%s\n%s\n%s", blue(entryId), entry.Title, dueFunc(cli.format(entry.Due)), details)
 	}
 }
 
