@@ -28,6 +28,7 @@ func (o *output) Errorf(format string, a ...any) {
 
 type cli struct {
 	app *todoApp
+	cfg config
 	output
 	timeRenderLayout string
 	location         *time.Location
@@ -77,7 +78,10 @@ func (cli *cli) add(arguments []string) {
 	}
 
 	userInput := cli.createDescriptionInput(title, due)
-	editorUserInput, _ := cli.openInEditor(userInput)
+	editorUserInput, err := cli.openInEditor(userInput)
+	if err != nil {
+		log.Debugf("Error processing input in editor: %v", err)
+	}
 	cleansedUserInput := cli.cleanseInput(editorUserInput)
 
 	if len(cleansedUserInput) == 0 {
@@ -86,7 +90,7 @@ func (cli *cli) add(arguments []string) {
 		userTitle, userDescription := cli.parseDescriptionInput(cleansedUserInput)
 		err := cli.app.add(userTitle, userDescription, due)
 		if err != nil {
-			cli.Errorf("Could not create %s. Maybe this entry already exists?\n", title)
+			cli.Errorf("Could not create %s. Maybe this entry already exists?\n", userTitle)
 		}
 	}
 
@@ -96,7 +100,7 @@ func (cli *cli) createDescriptionInput(title string, due time.Time) string {
 	return fmt.Sprintf(`%s
 # Please enter the title of your todo, adding a description after
 # an empty line if needed. Lines starting with '#' will be ignored,
-# and an empty message aborts this command.
+# and an empty input aborts this command.
 #
 # Title from command: %s
 # Due date of this todo: %s
@@ -133,7 +137,7 @@ func (cli *cli) openInEditor(input string) (string, error) {
 		return input, err
 	}
 	defer newFileDeleter("todo.tmp").Delete()
-	cmd := exec.Command(cli.app.config.EditorCmd, "todo.tmp")
+	cmd := exec.Command(cli.cfg.EditorCmd, "todo.tmp")
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -145,7 +149,7 @@ func (cli *cli) openInEditor(input string) (string, error) {
 		log.Debugf("Error of executing editor command: %s", err)
 		return input, err
 	}
-	result, err := newFileReader("add.tmp").ReadString()
+	result, err := newFileReader("todo.tmp").ReadString()
 	if err != nil {
 		return input, err
 	}

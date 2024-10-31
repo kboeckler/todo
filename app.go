@@ -7,13 +7,7 @@ import (
 )
 
 type todoApp struct {
-	config config
-	repo   *repository
-}
-
-func (app *todoApp) reloadConfig(config config) {
-	app.config = config
-	app.repo.config = config
+	repo repository
 }
 
 func (app *todoApp) findAll() ([]todo, ShortIdMap) {
@@ -98,7 +92,7 @@ func (app *todoApp) find(searchFor string) (*todo, string) {
 
 func (app *todoApp) add(title string, details string, due time.Time) error {
 	todo := todo{Title: title, Details: details, Id: uuid.New(), Due: due, Notification: notification{Type: NotificationTypeOnce}}
-	return app.repo.insertEntry(todo, todo.Title+".yml")
+	return app.repo.insertEntry(todo)
 }
 
 func (app *todoApp) delete(todoId uuid.UUID) error {

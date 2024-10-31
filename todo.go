@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"github.com/google/uuid"
-	"github.com/magiconair/properties"
 	log "github.com/sirupsen/logrus"
 	"os"
 	"sort"
@@ -19,7 +18,6 @@ func main() {
 	runInTray := flag.Bool("tray", false, "run in tray - does not do anything when not run as server")
 	logFile := flag.String("filename", "", "location of file to append log to - does not do anything when not run as server")
 	flag.Usage = usage
-
 	flag.Parse()
 
 	if *debug {
@@ -27,89 +25,44 @@ func main() {
 	} else {
 		log.SetLevel(log.InfoLevel)
 	}
-
-	app := &todoApp{repo: &repository{}}
+	log.Debugf("Log level is %s", log.GetLevel())
 
 	config := loadConfig()
-	app.reloadConfig(config)
-
-	var runner func()
+	repo := &repositoryFs{cfg: config}
+	app := &todoApp{repo: repo}
 
 	if *runAsServer {
-		serverFormatter := new(log.JSONFormatter)
-		log.SetReportCaller(true)
-		log.SetFormatter(serverFormatter)
-		if len(*logFile) > 0 {
-			log.SetOutput(newFileWriter(*logFile, true))
-		}
-
-		server := server{app: app, timeRenderLayout: time.RFC1123}
-
-		runner = func() {
-			if *runInTray {
-				server.runSysTray()
-			}
-			server.run()
-		}
+		runServer(logFile, app, runInTray)
 	} else {
-		cliFormatter := new(log.TextFormatter)
-		cliFormatter.DisableTimestamp = true
-		cliFormatter.DisableLevelTruncation = true
-		log.SetFormatter(cliFormatter)
-
-		cli := cli{app, output{os.Stdout, os.Stderr}, time.RFC1123, time.Local}
-
-		runner = func() {
-			cli.run(flag.Args())
-		}
+		runCli(app, config)
 	}
-
-	log.Debugf("Log level is %s", log.GetLevel())
-	runner()
 }
 
-type config struct {
-	TodoDir         string        `properties:"todoDir,default="`
-	Tick            time.Duration `properties:"tick,default=0"`
-	NotificationCmd string        `properties:"notification_command,default="`
-	EditorCmd       string        `properties:"notification_command,default="`
-	TrayIcon        string        `properties:"tray_icon,default="`
+func runServer(logFile *string, app *todoApp, runInTray *bool) {
+	serverFormatter := new(log.JSONFormatter)
+	log.SetReportCaller(true)
+	log.SetFormatter(serverFormatter)
+	if len(*logFile) > 0 {
+		log.SetOutput(newFileWriter(*logFile, true))
+	}
+
+	server := server{app: app, timeRenderLayout: time.RFC1123}
+
+	if *runInTray {
+		server.runSysTray()
+	}
+	server.run()
 }
 
-func loadConfig() config {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		exitWithError("Error getting home directory: ", err)
-	}
-	todoDir, specified := os.LookupEnv("TODO_USER_HOME")
-	if !specified {
-		todoDir = homeDir + "/.todo"
-	}
-	config := config{}
-	prop, err := properties.LoadFile(todoDir+"/todo.properties", properties.UTF8)
-	if err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "No config loaded due to error: %s, using Defaults\n", err)
-		todoDir = homeDir + "/.todo"
-	} else {
-		err = prop.Decode(&config)
-		if err != nil {
-			_, _ = fmt.Fprintf(os.Stderr, "No config loaded due to error: %s, using Defaults\n", err)
-			todoDir = homeDir + "/.todo"
-		}
-	}
-	if len(config.TodoDir) == 0 {
-		config.TodoDir = todoDir
-	}
-	if config.Tick == 0 {
-		config.Tick = 1 * time.Second
-	}
-	if len(config.EditorCmd) == 0 {
-		config.EditorCmd = "vim"
-	}
-	if len(config.TrayIcon) == 0 {
-		config.TrayIcon = "todo.png"
-	}
-	return config
+func runCli(app *todoApp, config config) {
+	cliFormatter := new(log.TextFormatter)
+	cliFormatter.DisableTimestamp = true
+	cliFormatter.DisableLevelTruncation = true
+	log.SetFormatter(cliFormatter)
+
+	cli := cli{app, config, output{os.Stdout, os.Stderr}, time.RFC1123, time.Local}
+
+	cli.run(flag.Args())
 }
 
 func usage() {

@@ -14,6 +14,7 @@ import (
 
 type server struct {
 	app              *todoApp
+	cfg              config
 	ctx              context.Context
 	cancel           context.CancelFunc
 	timeRenderLayout string
@@ -36,8 +37,11 @@ func (server *server) run() {
 			case s := <-signalChan:
 				switch s {
 				case syscall.SIGHUP:
-					config := loadConfig()
-					server.app.reloadConfig(config)
+					newConfig := loadConfig()
+					newRepo := &repositoryFs{cfg: newConfig}
+					newApp := &todoApp{repo: newRepo}
+					server.cfg = newConfig
+					server.app = newApp
 				case os.Interrupt:
 					server.cancel()
 					os.Exit(1)
@@ -63,7 +67,7 @@ func (server *server) loop(ctx context.Context) error {
 		select {
 		case <-ctx.Done():
 			return nil
-		case <-time.Tick(server.app.config.Tick):
+		case <-time.Tick(server.cfg.Tick):
 			err := server.handleNotifications()
 			if err != nil {
 				return err
@@ -73,10 +77,10 @@ func (server *server) loop(ctx context.Context) error {
 }
 
 func (server *server) handleNotifications() error {
-	if len(server.app.config.NotificationCmd) > 0 {
+	if len(server.cfg.NotificationCmd) > 0 {
 		todos, _ := server.app.findToBeNotifiedByDueBefore(time.Now())
 		for _, todo := range todos {
-			cmd := exec.Command(server.app.config.NotificationCmd, todo.Title, server.renderNotificationText(todo))
+			cmd := exec.Command(server.cfg.NotificationCmd, todo.Title, server.renderNotificationText(todo))
 			log.Debugf("Calling notification command: %s", cmd)
 			stdout, err := cmd.Output()
 			if err == nil {
@@ -108,9 +112,9 @@ func (server *server) runSysTray() {
 }
 
 func (server *server) onReady() {
-	file, err := os.ReadFile(server.app.config.TrayIcon)
+	file, err := os.ReadFile(server.cfg.TrayIcon)
 	if err != nil {
-		log.Errorf("Error reading icon from file %s: %s\n", server.app.config.TrayIcon, err)
+		log.Errorf("Error reading icon from file %s: %s\n", server.cfg.TrayIcon, err)
 	}
 	systray.SetIcon(file)
 	systray.SetTitle("Todo App")

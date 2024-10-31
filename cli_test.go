@@ -6,6 +6,13 @@ import (
 	"time"
 )
 
+func TestParseDescriptionInput(t *testing.T) {
+	cli := cli{}
+	title, description := cli.parseDescriptionInput("Testtitle")
+	assertEquals(t, "Testtitle", title)
+	assertEquals(t, "", description)
+}
+
 func TestFormatRelativeTo_future(t *testing.T) {
 	eventTime := "2023-08-23T12:00:00Z"
 	relativeTime := "2023-08-19T12:00:00Z"
@@ -125,6 +132,7 @@ func formatRelativeTo(eventTimeString string, relativeTimeString string) string 
 	format := cli.formatRelativeTo(eventTime, relativeTime)
 	return format
 }
+
 func assertEquals(t *testing.T, expected, actual string) {
 	if !strings.EqualFold(expected, actual) {
 		t.Errorf("Expected format result to be \"%s\", but was \"%s\".", expected, actual)
