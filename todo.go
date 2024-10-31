@@ -32,13 +32,13 @@ func main() {
 	app := &todoApp{repo: repo}
 
 	if *runAsServer {
-		runServer(logFile, app, runInTray)
+		runServer(logFile, app, config, runInTray)
 	} else {
 		runCli(app, config)
 	}
 }
 
-func runServer(logFile *string, app *todoApp, runInTray *bool) {
+func runServer(logFile *string, app *todoApp, config config, runInTray *bool) {
 	serverFormatter := new(log.JSONFormatter)
 	log.SetReportCaller(true)
 	log.SetFormatter(serverFormatter)
@@ -46,7 +46,7 @@ func runServer(logFile *string, app *todoApp, runInTray *bool) {
 		log.SetOutput(newFileWriter(*logFile, true))
 	}
 
-	server := server{app: app, timeRenderLayout: time.RFC1123}
+	server := server{app: app, cfg: config, timeRenderLayout: time.RFC1123}
 
 	if *runInTray {
 		server.runSysTray()

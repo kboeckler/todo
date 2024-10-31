@@ -114,7 +114,7 @@ func (server *server) runSysTray() {
 func (server *server) onReady() {
 	file, err := os.ReadFile(server.cfg.TrayIcon)
 	if err != nil {
-		log.Errorf("Error reading icon from file %s: %s\n", server.cfg.TrayIcon, err)
+		log.Errorf("Error reading icon from file '%s': %v\n", server.cfg.TrayIcon, err)
 	}
 	systray.SetIcon(file)
 	systray.SetTitle("Todo App")

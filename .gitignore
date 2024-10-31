@@ -1,4 +1,5 @@
 todo.exe
 todo
+*.log
 *.iml
 .idea/
