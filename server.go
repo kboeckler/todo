@@ -13,7 +13,7 @@ import (
 )
 
 type server struct {
-	app              *todoApp
+	app              app
 	cfg              config
 	runWithTray      bool
 	runAsRepo        bool
@@ -41,7 +41,7 @@ func (server *server) run() {
 				case syscall.SIGHUP:
 					newConfig := loadConfig()
 					newRepo := &repositoryFs{cfg: newConfig}
-					newApp := &todoApp{repo: newRepo}
+					newApp := &appLocal{repo: newRepo}
 					server.cfg = newConfig
 					server.app = newApp
 				case os.Interrupt:
@@ -113,7 +113,7 @@ func (server *server) handleNotifications() error {
 	return nil
 }
 
-func (server *server) renderNotificationText(todo todo) string {
+func (server *server) renderNotificationText(todo todoModel) string {
 	return fmt.Sprintf("%s\n%s\n%s", todo.Title, todo.Due.Format(server.timeRenderLayout), todo.Details)
 }
 

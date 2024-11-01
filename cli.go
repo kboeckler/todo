@@ -27,7 +27,7 @@ func (o *output) Errorf(format string, a ...any) {
 }
 
 type cli struct {
-	app *todoApp
+	app app
 	cfg config
 	output
 	timeRenderLayout string
@@ -168,7 +168,7 @@ func (cli *cli) due() {
 	cli.printEntries(entries, idMap)
 }
 
-func (cli *cli) printEntries(entries []todo, idMap ShortIdMap) {
+func (cli *cli) printEntries(entries []todoModel, idMap ShortIdMap) {
 	for _, entry := range sorted(entries) {
 		blue := color.New(color.FgBlue).SprintFunc()
 		magenta := color.New(color.FgMagenta).SprintFunc()
@@ -192,7 +192,7 @@ func (cli *cli) show(arguments []string) {
 	}
 	searchFor = buffer.String()
 
-	var entry *todo
+	var entry *todoModel
 	var entryId string
 
 	if len(searchFor) > 0 {
@@ -228,7 +228,7 @@ func (cli *cli) del(arguments []string) {
 	}
 	searchFor = buffer.String()
 
-	var entry *todo
+	var entry *todoModel
 
 	if len(searchFor) > 0 {
 		entry, _ = cli.app.find(searchFor)
@@ -258,7 +258,7 @@ func (cli *cli) resolve(arguments []string) {
 	}
 	searchFor = buffer.String()
 
-	var entry *todo
+	var entry *todoModel
 
 	if len(searchFor) > 0 {
 		entry, _ = cli.app.find(searchFor)
@@ -285,7 +285,7 @@ func (cli *cli) snooze(arguments []string) {
 		newDue = time.Now().Add(1 * time.Hour)
 	}
 
-	var entry *todo
+	var entry *todoModel
 
 	if len(searchFor) > 0 {
 		entry, _ = cli.app.find(searchFor)

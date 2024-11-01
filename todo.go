@@ -29,7 +29,7 @@ func main() {
 
 	config := loadConfig()
 	repo := &repositoryFs{cfg: config}
-	app := &todoApp{repo: repo}
+	app := &appLocal{repo: repo}
 
 	if *runAsServer {
 		runServer(logFile, app, config, runInTray, runAsRepo)
@@ -38,7 +38,7 @@ func main() {
 	}
 }
 
-func runServer(logFile *string, app *todoApp, config config, runInTray *bool, runAsRepo *bool) {
+func runServer(logFile *string, app app, config config, runInTray *bool, runAsRepo *bool) {
 	serverFormatter := new(log.JSONFormatter)
 	log.SetReportCaller(true)
 	log.SetFormatter(serverFormatter)
@@ -52,7 +52,7 @@ func runServer(logFile *string, app *todoApp, config config, runInTray *bool, ru
 	server.run()
 }
 
-func runCli(app *todoApp, config config) {
+func runCli(app app, config config) {
 	cliFormatter := new(log.TextFormatter)
 	cliFormatter.DisableTimestamp = true
 	cliFormatter.DisableLevelTruncation = true
@@ -116,34 +116,6 @@ func (t *todo) validate() error {
 	return nil
 }
 
-type todos struct {
-	items []todo
-}
-
-func sorted(items []todo) []todo {
-	sortable := list(items)
-	sort.Sort(sortable)
-	return sortable.items
-}
-
-func list(items []todo) *todos {
-	return &todos{items}
-}
-
-func (t *todos) Len() int {
-	return len(t.items)
-}
-
-func (t *todos) Less(i, j int) bool {
-	return !t.items[i].Due.After(t.items[j].Due)
-}
-
-func (t *todos) Swap(i, j int) {
-	tmp := t.items[i]
-	t.items[i] = t.items[j]
-	t.items[j] = tmp
-}
-
 type notificationType string
 
 const (
@@ -154,4 +126,32 @@ const (
 type notification struct {
 	Type       notificationType `yaml:"type"`
 	NotifiedAt time.Time        `yaml:"notifiedAt,omitempty"`
+}
+
+type todoModels struct {
+	items []todoModel
+}
+
+func sorted(items []todoModel) []todoModel {
+	sortable := list(items)
+	sort.Sort(sortable)
+	return sortable.items
+}
+
+func list(items []todoModel) *todoModels {
+	return &todoModels{items}
+}
+
+func (t *todoModels) Len() int {
+	return len(t.items)
+}
+
+func (t *todoModels) Less(i, j int) bool {
+	return !t.items[i].Due.After(t.items[j].Due)
+}
+
+func (t *todoModels) Swap(i, j int) {
+	tmp := t.items[i]
+	t.items[i] = t.items[j]
+	t.items[j] = tmp
 }
