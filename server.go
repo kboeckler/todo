@@ -15,6 +15,8 @@ import (
 type server struct {
 	app              *todoApp
 	cfg              config
+	runWithTray      bool
+	runAsRepo        bool
 	ctx              context.Context
 	cancel           context.CancelFunc
 	timeRenderLayout string
@@ -52,6 +54,14 @@ func (server *server) run() {
 			}
 		}
 	}()
+
+	if server.runWithTray {
+		go server.runSysTray()
+	}
+
+	if server.runAsRepo {
+		go server.runRepo()
+	}
 
 	if err := server.loop(server.ctx); err != nil {
 		log.Fatalf("%s\n", err)
@@ -108,7 +118,7 @@ func (server *server) renderNotificationText(todo todo) string {
 }
 
 func (server *server) runSysTray() {
-	go systray.Run(server.onReady, server.onExit)
+	systray.Run(server.onReady, server.onExit)
 }
 
 func (server *server) onReady() {
@@ -129,4 +139,8 @@ func (server *server) onReady() {
 
 func (server *server) onExit() {
 	server.cancel()
+}
+
+func (server *server) runRepo() {
+	log.Printf("We are run as repo!\n")
 }

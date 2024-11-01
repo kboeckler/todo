@@ -16,6 +16,7 @@ func main() {
 	debug := flag.Bool("debug", false, "enable debugging messages")
 	runAsServer := flag.Bool("server", false, "run server instance - additional cli commands will be ignored")
 	runInTray := flag.Bool("tray", false, "run in tray - does not do anything when not run as server")
+	runAsRepo := flag.Bool("repo", false, "run as repo server - does not do anything when not run as server")
 	logFile := flag.String("filename", "", "location of file to append log to - does not do anything when not run as server")
 	flag.Usage = usage
 	flag.Parse()
@@ -25,32 +26,29 @@ func main() {
 	} else {
 		log.SetLevel(log.InfoLevel)
 	}
-	log.Debugf("Log level is %s", log.GetLevel())
 
 	config := loadConfig()
 	repo := &repositoryFs{cfg: config}
 	app := &todoApp{repo: repo}
 
 	if *runAsServer {
-		runServer(logFile, app, config, runInTray)
+		runServer(logFile, app, config, runInTray, runAsRepo)
 	} else {
 		runCli(app, config)
 	}
 }
 
-func runServer(logFile *string, app *todoApp, config config, runInTray *bool) {
+func runServer(logFile *string, app *todoApp, config config, runInTray *bool, runAsRepo *bool) {
 	serverFormatter := new(log.JSONFormatter)
 	log.SetReportCaller(true)
 	log.SetFormatter(serverFormatter)
 	if len(*logFile) > 0 {
 		log.SetOutput(newFileWriter(*logFile, true))
 	}
+	log.Debugf("Start server with log level %s", log.GetLevel())
 
-	server := server{app: app, cfg: config, timeRenderLayout: time.RFC1123}
+	server := server{app: app, cfg: config, runWithTray: *runInTray, runAsRepo: *runAsRepo, timeRenderLayout: time.RFC1123}
 
-	if *runInTray {
-		server.runSysTray()
-	}
 	server.run()
 }
 
@@ -59,6 +57,8 @@ func runCli(app *todoApp, config config) {
 	cliFormatter.DisableTimestamp = true
 	cliFormatter.DisableLevelTruncation = true
 	log.SetFormatter(cliFormatter)
+
+	log.Debugf("Run cli with log level %s", log.GetLevel())
 
 	cli := cli{app, config, output{os.Stdout, os.Stderr}, time.RFC1123, time.Local}
 
