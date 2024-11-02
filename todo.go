@@ -16,7 +16,7 @@ func main() {
 	debug := flag.Bool("debug", false, "enable debugging messages")
 	runAsServer := flag.Bool("server", false, "run server instance - additional cli commands will be ignored")
 	runInTray := flag.Bool("tray", false, "run in tray - does not do anything when not run as server")
-	runAsRepo := flag.Bool("repo", false, "run as repo server - does not do anything when not run as server")
+	runAsRestServer := flag.Bool("rest-server", false, "run as rest server - does not do anything when not run as server")
 	logFile := flag.String("filename", "", "location of file to append log to - does not do anything when not run as server")
 	flag.Usage = usage
 	flag.Parse()
@@ -32,13 +32,13 @@ func main() {
 	app := &appLocal{repo: repo}
 
 	if *runAsServer {
-		runServer(logFile, app, config, runInTray, runAsRepo)
+		runServer(logFile, app, config, runInTray, runAsRestServer)
 	} else {
 		runCli(app, config)
 	}
 }
 
-func runServer(logFile *string, app app, config config, runInTray *bool, runAsRepo *bool) {
+func runServer(logFile *string, app app, config config, runInTray *bool, runAsRestServer *bool) {
 	serverFormatter := new(log.JSONFormatter)
 	log.SetReportCaller(true)
 	log.SetFormatter(serverFormatter)
@@ -47,7 +47,7 @@ func runServer(logFile *string, app app, config config, runInTray *bool, runAsRe
 	}
 	log.Debugf("Start server with log level %s", log.GetLevel())
 
-	server := server{app: app, cfg: config, runWithTray: *runInTray, runAsRepo: *runAsRepo, timeRenderLayout: time.RFC1123}
+	server := server{app: app, cfg: config, runWithTray: *runInTray, runAsRestServer: *runAsRestServer, timeRenderLayout: time.RFC1123}
 
 	server.run()
 }

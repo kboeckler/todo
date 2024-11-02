@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"fyne.io/systray"
+	"github.com/gorilla/mux"
 	log "github.com/sirupsen/logrus"
+	"net/http"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -16,7 +18,7 @@ type server struct {
 	app              app
 	cfg              config
 	runWithTray      bool
-	runAsRepo        bool
+	runAsRestServer  bool
 	ctx              context.Context
 	cancel           context.CancelFunc
 	timeRenderLayout string
@@ -59,8 +61,8 @@ func (server *server) run() {
 		go server.runSysTray()
 	}
 
-	if server.runAsRepo {
-		go server.runRepo()
+	if server.runAsRestServer {
+		go server.runRestServer()
 	}
 
 	if err := server.loop(server.ctx); err != nil {
@@ -118,6 +120,7 @@ func (server *server) renderNotificationText(todo todoModel) string {
 }
 
 func (server *server) runSysTray() {
+	log.Debugf("Running in tray now")
 	systray.Run(server.onReady, server.onExit)
 }
 
@@ -141,6 +144,21 @@ func (server *server) onExit() {
 	server.cancel()
 }
 
-func (server *server) runRepo() {
-	log.Printf("We are run as repo!\n")
+func (server *server) runRestServer() {
+	log.Debugf("Running rest server now")
+	restServer := newRestServer(server.app)
+	r := mux.NewRouter()
+	srv := &http.Server{
+		Addr: "0.0.0.0:8080",
+		// Good practice to set timeouts to avoid Slowloris attacks.
+		WriteTimeout: time.Second * 15,
+		ReadTimeout:  time.Second * 15,
+		IdleTimeout:  time.Second * 60,
+		Handler:      r, // Pass our instance of gorilla/mux in.
+	}
+	for _, listener := range restServer.listeners {
+		r.HandleFunc(listener.path, listener.handler)
+	}
+
+	srv.ListenAndServe()
 }
