@@ -63,7 +63,8 @@ func runCli(config config, runAsRestClient *bool) {
 
 	var app app
 	if *runAsRestClient {
-		restClient := newRestClient("http://127.0.0.1:8080")
+		restClient := newRestClient(config.RemoteBaseUrl)
+		log.Debugf("Running cli against remote server on BaseUrl '%s'\n", restClient.baseUrl)
 		app = newAppRemote(restClient)
 	} else {
 		repo := &repositoryFs{cfg: config}
@@ -83,6 +84,8 @@ func usage() {
 	_, _ = fmt.Fprintf(out, "\nCommands:\n")
 	_, _ = fmt.Fprintf(out, "  help\n")
 	_, _ = fmt.Fprintf(out, "\tprints this help\n")
+	_, _ = fmt.Fprintf(out, "  config\n")
+	_, _ = fmt.Fprintf(out, "\tprints the current configuration\n")
 	_, _ = fmt.Fprintf(out, "  add\n")
 	_, _ = fmt.Fprintf(out, "\tadds a new todo\n")
 	_, _ = fmt.Fprintf(out, "  list\n")
@@ -97,6 +100,21 @@ func usage() {
 	_, _ = fmt.Fprintf(out, "\treolves an active todo\n")
 	_, _ = fmt.Fprintf(out, "  snooze\n")
 	_, _ = fmt.Fprintf(out, "\tsets a new due date for an active todo\n")
+}
+
+func showConfig(config config) {
+	out := os.Stdout
+	_, _ = fmt.Fprintf(out, "Current config:\n")
+	_, _ = fmt.Fprintf(out, "  TodoDir=%s\n", config.TodoDir)
+	_, _ = fmt.Fprintf(out, "CLI config:\n")
+	_, _ = fmt.Fprintf(out, "  EditorCmd=%s\n", config.EditorCmd)
+	_, _ = fmt.Fprintf(out, "  RemoteBaseUrl=%s\n", config.RemoteBaseUrl)
+	_, _ = fmt.Fprintf(out, "Server config:\n")
+	_, _ = fmt.Fprintf(out, "  Tick=%s\n", config.Tick)
+	_, _ = fmt.Fprintf(out, "  NotificationCmd=%s\n", config.NotificationCmd)
+	_, _ = fmt.Fprintf(out, "  TrayIcon=%s\n", config.TrayIcon)
+	_, _ = fmt.Fprintf(out, "  RestBaseHost=%s\n", config.RestBaseHost)
+	_, _ = fmt.Fprintf(out, "  RestBasePort=%s\n", config.RestBasePort)
 }
 
 func exitWithError(v ...any) {

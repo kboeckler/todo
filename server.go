@@ -145,11 +145,10 @@ func (server *server) onExit() {
 }
 
 func (server *server) runRestServer() {
-	log.Debugf("Running rest server now")
 	restServer := newRestServer(server.app)
 	r := mux.NewRouter()
 	srv := &http.Server{
-		Addr: "0.0.0.0:8080",
+		Addr: fmt.Sprintf("%s:%s", server.cfg.RestBaseHost, server.cfg.RestBasePort),
 		// Good practice to set timeouts to avoid Slowloris attacks.
 		WriteTimeout: time.Second * 15,
 		ReadTimeout:  time.Second * 15,
@@ -159,6 +158,6 @@ func (server *server) runRestServer() {
 	for _, listener := range restServer.listeners {
 		r.HandleFunc(listener.path, listener.handler)
 	}
-
+	log.Debugf("Running rest server on Address '%s'\n", srv.Addr)
 	srv.ListenAndServe()
 }

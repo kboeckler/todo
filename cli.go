@@ -47,6 +47,8 @@ func (cli *cli) run(args []string) {
 	switch *command {
 	case "help":
 		usage()
+	case "config":
+		showConfig(cli.cfg)
 	case "add":
 		cli.add(arguments)
 	case "list":
