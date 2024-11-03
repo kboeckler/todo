@@ -40,6 +40,11 @@ func newRestServer(app app) *restServer {
 	return rs
 }
 
+type TodosResponse struct {
+	Todos      []todoModel `json:"todos"`
+	ShortIdMap ShortIdMap  `json:"shortIdMap"`
+}
+
 type AddBody struct {
 	Title   string    `json:"title"`
 	Details string    `json:"details"`
@@ -47,6 +52,7 @@ type AddBody struct {
 }
 
 func (rs *restServer) TodosHandler(w http.ResponseWriter, r *http.Request) {
+	log.Debugf("Handling incoming request: %s %s\n", r.Method, r.RequestURI)
 	method, _, err := rs.resolveMethodAndContentType(r)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -54,8 +60,9 @@ func (rs *restServer) TodosHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if strings.EqualFold(method, "GET") {
-		todos, _ := rs.app.findAll()
-		jsonTodos, err := json.Marshal(todos)
+		todos, shortIdMap := rs.app.findAll()
+		response := TodosResponse{Todos: todos, ShortIdMap: shortIdMap}
+		jsonResponse, err := json.Marshal(response)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write([]byte(err.Error()))
@@ -64,7 +71,7 @@ func (rs *restServer) TodosHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write(jsonTodos)
+		w.Write(jsonResponse)
 	} else if strings.EqualFold(method, "POST") {
 		addBody := &AddBody{}
 		err = rs.parseRequestBody(r.Body, addBody)
@@ -94,6 +101,7 @@ func (rs *restServer) TodosHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (rs *restServer) TodoHandler(w http.ResponseWriter, r *http.Request) {
+	log.Debugf("Handling incoming request: %s %s\n", r.Method, r.RequestURI)
 	method, _, err := rs.resolveMethodAndContentType(r)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -139,6 +147,7 @@ func (rs *restServer) TodoHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (rs *restServer) TodoNotifiedHandler(w http.ResponseWriter, r *http.Request) {
+	log.Debugf("Handling incoming request: %s %s\n", r.Method, r.RequestURI)
 	method, _, err := rs.resolveMethodAndContentType(r)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -169,6 +178,7 @@ func (rs *restServer) TodoNotifiedHandler(w http.ResponseWriter, r *http.Request
 }
 
 func (rs *restServer) TodoResolvedHandler(w http.ResponseWriter, r *http.Request) {
+	log.Debugf("Handling incoming request: %s %s\n", r.Method, r.RequestURI)
 	method, _, err := rs.resolveMethodAndContentType(r)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -203,6 +213,7 @@ type DueBody struct {
 }
 
 func (rs *restServer) TodoDueHandler(w http.ResponseWriter, r *http.Request) {
+	log.Debugf("Handling incoming request: %s %s\n", r.Method, r.RequestURI)
 	method, _, err := rs.resolveMethodAndContentType(r)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -250,12 +261,8 @@ type SearchBody struct {
 	NotifiedBefore time.Time `json:"notifiedBefore"`
 }
 
-type SearchResponse struct {
-	Todos      []todoModel `json:"todos"`
-	ShortIdMap ShortIdMap  `json:"shortIdMap"`
-}
-
 func (rs *restServer) SearchHandler(w http.ResponseWriter, r *http.Request) {
+	log.Debugf("Handling incoming request: %s %s\n", r.Method, r.RequestURI)
 	method, _, err := rs.resolveMethodAndContentType(r)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -280,20 +287,19 @@ func (rs *restServer) SearchHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	todosResponse := make([]todoModel, 0)
-	shortIdMapResponse := make(map[string]string)
+	var shortIdMapResponse ShortIdMap = make(map[string]string)
 	if len(searchBody.SearchFor) > 0 {
 		todo, shortId := rs.app.find(searchBody.SearchFor)
 		if todo != nil {
 			todosResponse = append(todosResponse, *todo)
-			shortIdMapResponse[shortId] = (*todo).Id.String()
+			shortIdMapResponse[(*todo).Id.String()] = shortId
 		}
 	} else if !searchBody.DueBefore.IsZero() {
 		todosResponse, shortIdMapResponse = rs.app.findWhereDueBefore(searchBody.DueBefore)
 	} else if !searchBody.NotifiedBefore.IsZero() {
 		todosResponse, shortIdMapResponse = rs.app.findToBeNotifiedByDueBefore(searchBody.NotifiedBefore)
 	}
-	response := SearchResponse{Todos: todosResponse, ShortIdMap: shortIdMapResponse}
-	log.Debugf("resultResponse would be: %v", response)
+	response := TodosResponse{Todos: todosResponse, ShortIdMap: shortIdMapResponse}
 	jsonResponse, err := json.Marshal(response)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)

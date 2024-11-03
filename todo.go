@@ -14,6 +14,7 @@ import (
 
 func main() {
 	debug := flag.Bool("debug", false, "enable debugging messages")
+	runAsRestClient := flag.Bool("rest-client", false, "run as rest client - does not do anything when run as server")
 	runAsServer := flag.Bool("server", false, "run server instance - additional cli commands will be ignored")
 	runInTray := flag.Bool("tray", false, "run in tray - does not do anything when not run as server")
 	runAsRestServer := flag.Bool("rest-server", false, "run as rest server - does not do anything when not run as server")
@@ -28,17 +29,15 @@ func main() {
 	}
 
 	config := loadConfig()
-	repo := &repositoryFs{cfg: config}
-	app := &appLocal{repo: repo}
 
 	if *runAsServer {
-		runServer(logFile, app, config, runInTray, runAsRestServer)
+		runServer(logFile, config, runInTray, runAsRestServer)
 	} else {
-		runCli(app, config)
+		runCli(config, runAsRestClient)
 	}
 }
 
-func runServer(logFile *string, app app, config config, runInTray *bool, runAsRestServer *bool) {
+func runServer(logFile *string, config config, runInTray *bool, runAsRestServer *bool) {
 	serverFormatter := new(log.JSONFormatter)
 	log.SetReportCaller(true)
 	log.SetFormatter(serverFormatter)
@@ -47,12 +46,14 @@ func runServer(logFile *string, app app, config config, runInTray *bool, runAsRe
 	}
 	log.Debugf("Start server with log level %s", log.GetLevel())
 
+	repo := &repositoryFs{cfg: config}
+	app := &appLocal{repo: repo}
 	server := server{app: app, cfg: config, runWithTray: *runInTray, runAsRestServer: *runAsRestServer, timeRenderLayout: time.RFC1123}
 
 	server.run()
 }
 
-func runCli(app app, config config) {
+func runCli(config config, runAsRestClient *bool) {
 	cliFormatter := new(log.TextFormatter)
 	cliFormatter.DisableTimestamp = true
 	cliFormatter.DisableLevelTruncation = true
@@ -60,6 +61,14 @@ func runCli(app app, config config) {
 
 	log.Debugf("Run cli with log level %s", log.GetLevel())
 
+	var app app
+	if *runAsRestClient {
+		restClient := newRestClient("http://127.0.0.1:8080")
+		app = newAppRemote(restClient)
+	} else {
+		repo := &repositoryFs{cfg: config}
+		app = &appLocal{repo: repo}
+	}
 	cli := cli{app, config, output{os.Stdout, os.Stderr}, time.RFC1123, time.Local}
 
 	cli.run(flag.Args())

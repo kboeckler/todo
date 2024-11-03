@@ -269,7 +269,7 @@ func (cli *cli) resolve(arguments []string) {
 	} else {
 		err := cli.app.resolve(entry.Id)
 		if err != nil {
-			cli.Errorf("Could not resolve %s %s: %s", entry.Id, entry.Title, err)
+			cli.Errorf("Could not resolve %s %s: %s\n", entry.Id, entry.Title, err)
 		} else {
 			cli.Resultf("Resolved %s %s\n", entry.Id, entry.Title)
 		}
