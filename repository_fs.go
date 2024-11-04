@@ -15,6 +15,10 @@ type repositoryFs struct {
 	cfg config
 }
 
+func newRepositoryFs(config config) *repositoryFs {
+	return &repositoryFs{cfg: config}
+}
+
 func (repo *repositoryFs) readAllEntries() []todo {
 	entries := repo.scanEntriesInternal()
 	todos := make([]todo, len(entries))

@@ -46,7 +46,7 @@ func runServer(logFile *string, config config, runInTray *bool, runAsRestServer 
 	}
 	log.Debugf("Start server with log level %s", log.GetLevel())
 
-	repo := &repositoryFs{cfg: config}
+	repo := newRepositoryMutex(newRepositoryFs(config))
 	app := &appLocal{repo: repo}
 	server := server{app: app, cfg: config, runWithTray: *runInTray, runAsRestServer: *runAsRestServer, timeRenderLayout: time.RFC1123}
 
@@ -67,7 +67,7 @@ func runCli(config config, runAsRestClient *bool) {
 		log.Debugf("Running cli against remote server on BaseUrl '%s'\n", restClient.baseUrl)
 		app = newAppRemote(restClient)
 	} else {
-		repo := &repositoryFs{cfg: config}
+		repo := newRepositoryMutex(newRepositoryFs(config))
 		app = &appLocal{repo: repo}
 	}
 	cli := cli{app, config, output{os.Stdout, os.Stderr}, time.RFC1123, time.Local}

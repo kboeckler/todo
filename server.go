@@ -42,7 +42,7 @@ func (server *server) run() {
 				switch s {
 				case syscall.SIGHUP:
 					newConfig := loadConfig()
-					newRepo := &repositoryFs{cfg: newConfig}
+					newRepo := newRepositoryMutex(newRepositoryFs(newConfig))
 					newApp := &appLocal{repo: newRepo}
 					server.cfg = newConfig
 					server.app = newApp

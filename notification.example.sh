@@ -6,4 +6,3 @@ if [ "$#" -ne 2 ]; then
 fi
 
 notify-send -u normal -a "Todo" --hint='string:desktop-entry:todo' "$1" "$2"
-
