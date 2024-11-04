@@ -9,7 +9,7 @@ import (
 
 type config struct {
 	TodoDir         string        `properties:"todoDir,default="`
-	EditorCmd       string        `properties:"notification_command,default="`
+	EditorCmd       string        `properties:"editor_command,default="`
 	RemoteBaseUrl   string        `properties:"remote_base_url,default="`
 	Tick            time.Duration `properties:"tick,default=0"`
 	NotificationCmd string        `properties:"notification_command,default="`
@@ -34,22 +34,23 @@ func readTodoDirAndLoadConfig() config {
 	if !specified {
 		todoDir = homeDir + "/.todo"
 	}
-	config := config{}
+	resultConfig := config{}
 	prop, err := properties.LoadFile(todoDir+"/todo.properties", properties.UTF8)
 	if err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "No config loaded due to error: %s, using Defaults\n", err)
 		todoDir = homeDir + "/.todo"
 	} else {
-		err = prop.Decode(&config)
+		err = prop.Decode(&resultConfig)
 		if err != nil {
 			_, _ = fmt.Fprintf(os.Stderr, "No config loaded due to error: %s, using Defaults\n", err)
 			todoDir = homeDir + "/.todo"
+			resultConfig = config{}
 		}
 	}
-	if len(config.TodoDir) == 0 {
-		config.TodoDir = todoDir
+	if len(resultConfig.TodoDir) == 0 {
+		resultConfig.TodoDir = todoDir
 	}
-	return config
+	return resultConfig
 }
 
 func loadCliConfig(config config) config {
